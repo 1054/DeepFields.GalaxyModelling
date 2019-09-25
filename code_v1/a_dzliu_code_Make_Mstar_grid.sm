@@ -1,0 +1,6 @@
+make_Mstar_grid
+    # 
+    set Schechter_Mstep = 0.10
+    set Schechter_M_log10 = 7.0,13.0,$(Schechter_Mstep) # default log10 stellar mass range, down to 8.0 <TODO>
+    set Schechter_M = 10**Schechter_M_log10
+    set Schechter_P = Schechter_M*0.0 + 1e-99

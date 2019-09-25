@@ -1,0 +1,616 @@
+go 00
+    # 
+    # aim:
+    #   simulate the galaxy evolution model!
+    # 
+    # usage: 
+    #   echo "macro read a_dzliu_code_Plot_SMF_dzliu_model.sm go" | sm
+    # 
+    plot_SMF
+    !open Plot_model_SMF.pdf
+
+
+plot_SMF 00
+    # 
+    # aim:
+    #   read stellar mass functions (SMF) and plot
+    #   see plot_Mstar_histogram.sm
+    # 
+    # usage: 
+    #   macro read a_dzliu_code_Plot_SMF_dzliu_model.sm plot_SMF
+    # 
+    load crabPlot.sm
+    load crabPlotColorbar.sm
+    # 
+    load crabPlot.sm
+    crabPlotOpenPS "Plot_model_SMF.eps"
+    # 
+    crabPlotDefaultPenForBox
+    limits 6.5 13 -6.5 -0.5
+    ticksize -1 10 -1 10
+    notation 0 0 0 1
+    box
+    # 
+    crabPlotDefaultPenForTitle
+    xlabel "M_{*} [M_{\odot}]"
+    ylabel "\Psi\ [Mpc^{-3} dex^{-1}]"
+    # 
+    macro read a_dzliu_code_Make_z_grid.sm
+    make_z_grid
+    plotColorBar 21000 29000 0 0 z
+    # 
+    crabPlotDefaultPenForConnect
+    #overplot_SMF_Panter
+    #overplot_SMF_Baldry
+    overplot_SMF_PengYingjie
+    #overplot_SMF_Grazian
+    overplot_SMF_Davidzon
+    #overplot_SMF_Davidzon_QG
+    #overplot_SMF_Davidzon_SFG
+    #overplot_SMF_Davidzon_data_points
+    overplot_SMF_dzliu_model
+    #overplot_SMF_Ilbert
+    #overplot_SMF_Song
+    #overplot_SMF_dzliu
+    #overplot_SFR_driven_SMF_dzliu
+    crabPlotClosePS
+
+
+
+
+overplot_SMF_Baldry
+    overplot_SMF_Baldry_SFG
+    overplot_SMF_Baldry_QG
+    overplot_SMF_Baldry_ALL
+
+overplot_SMF_Baldry_SFG
+    # Baldry et al. 2012 is using Chabrier IMF, Same as us.
+    load crabPlot.sm
+    crabPlotDefaultPenForConnect
+    load astroSfig.sm
+    data "DataTable_stellar_mass_functions/datatable_Baldry2012_SMF_SFG.txt"
+    read {zLo 1 zHi 2 Mchar 5 Phi_1 6 alpha_1 7 Phi_2 8 alpha_2 9}
+    set z = (zLo+zHi)/2.0
+    do i=0,dimen(z)-1 {
+        calc_Schechter $(Mchar[$i]) $(Phi_1[$i]) $(alpha_1[$i]) 'Baldry'
+        set plot_x = Schechter_M
+        set plot_y = Schechter_P
+        calc_Schechter $(Mchar[$i]) $(Phi_2[$i]) $(alpha_2[$i]) 'Baldry'
+        set plot_x = plot_x
+        set plot_y = plot_y + Schechter_P
+        ctype_by_z z[$i]
+        set plot_select = (plot_x>=10**8.0)
+        set plot_x = lg(plot_x) if(plot_select)
+        set plot_y = lg(plot_y) if(plot_select)
+        ltype 2 lweight 3.55
+        connect plot_x plot_y
+        relocate $(plot_x[0]) $(plot_y[0])
+        expand 0.65 lweight 3.55 putlabel 4 "B12"
+    }
+
+overplot_SMF_Baldry_QG
+    # Baldry et al. 2012 is using Chabrier IMF, Same as us.
+    load crabPlot.sm
+    crabPlotDefaultPenForConnect
+    load astroSfig.sm
+    data "DataTable_stellar_mass_functions/datatable_Baldry2012_SMF_QG.txt"
+    read {zLo 1 zHi 2 Mchar 5 Phi_1 6 alpha_1 7 Phi_2 8 alpha_2 9}
+    set z = (zLo+zHi)/2.0
+    do i=0,dimen(z)-1 {
+        calc_Schechter $(Mchar[$i]) $(Phi_1[$i]) $(alpha_1[$i]) 'Baldry'
+        set plot_x = Schechter_M
+        set plot_y = Schechter_P
+        calc_Schechter $(Mchar[$i]) $(Phi_2[$i]) $(alpha_2[$i]) 'Baldry'
+        set plot_x = plot_x
+        set plot_y = plot_y + Schechter_P
+        ctype_by_z z[$i]
+        set plot_select = (plot_x>=10**8.3)
+        set plot_x = lg(plot_x) if(plot_select)
+        set plot_y = lg(plot_y) if(plot_select)
+        ltype 1 lweight $(3.55+1.00)
+        connect plot_x plot_y
+        relocate $(plot_x[0]) $(plot_y[0])
+        expand 0.65 lweight 3.55 putlabel 4 "B12"
+    }
+
+overplot_SMF_Baldry_ALL
+    # Baldry et al. 2012 is using Chabrier IMF, Same as us.
+    load crabPlot.sm
+    crabPlotDefaultPenForConnect
+    load astroSfig.sm
+    data "DataTable_stellar_mass_functions/datatable_Baldry2012_SMF_ALL.txt"
+    read {zLo 1 zHi 2 Mchar 5 Phi_1 6 alpha_1 7 Phi_2 8 alpha_2 9}
+    set z = (zLo+zHi)/2.0
+    do i=0,dimen(z)-1 {
+        calc_Schechter $(Mchar[$i]) $(Phi_1[$i]) $(alpha_1[$i]) 'Baldry'
+        set plot_x = Schechter_M
+        set plot_y = Schechter_P
+        calc_Schechter $(Mchar[$i]) $(Phi_2[$i]) $(alpha_2[$i]) 'Baldry'
+        set plot_x = plot_x
+        set plot_y = plot_y + Schechter_P
+        set Schechter_P = plot_y
+        ctype_by_z z[$i]
+        set plot_select = (plot_x>=10**8.3)
+        set plot_x = lg(plot_x) if(plot_select)
+        set plot_y = lg(plot_y) if(plot_select)
+        ltype 0 lweight 3.55
+        connect plot_x plot_y
+        relocate $(plot_x[0]) $(plot_y[0])
+        expand 0.65 lweight 3.55 putlabel 4 "B12"
+        # 
+        # Normalization
+        set Schechter_M_total = sum((Schechter_P)*Schechter_M*Schechter_Mstep) # *Schechter_Mstep to account for Psi unit [dex-1]
+        echo Schechter_M_total = $(lg(Schechter_M_total)) at z = $(z[$i])
+    }
+
+overplot_SMF_Panter
+    # Panter et al. 2004 is using Salpeter IMF
+    load crabPlot.sm
+    crabPlotDefaultPenForConnect
+    load astroSfig.sm
+    data "DataTable_stellar_mass_functions/datatable_Panter2004_SMF_ALL.txt"
+    read {zLo 1 zHi 2 Mchar 5 Phi_1 6 alpha_1 7}
+    set Mchar = Mchar - lg(1.73) # convert to Chabrier IMF
+    set z = (zLo+zHi)/2.0
+    do i=0,dimen(z)-1 {
+        calc_Schechter $(Mchar[$i]) $(Phi_1[$i]) $(alpha_1[$i]) 'Panter'
+        set plot_x = Schechter_M
+        set plot_y = Schechter_P
+        ctype_by_z z[$i]
+        set plot_x = lg(plot_x)
+        set plot_y = lg(plot_y)
+        ltype 0 lweight 3.55
+        connect plot_x plot_y
+        relocate $(plot_x[0]) $(plot_y[0])
+        expand 0.65 lweight 3.55 putlabel 4 "P04"
+    }
+
+overplot_SMF_PengYingjie
+    overplot_SMF_PengYingjie_SFG
+    overplot_SMF_PengYingjie_QG
+    overplot_SMF_PengYingjie_ALL
+
+overplot_SMF_PengYingjie_SFG
+    # Peng Yingjie et al. 2010b - SDSS and zCOSMOS - SMF - 2010ApJ...721..193P
+    # Chabrier IMF
+    load crabPlot.sm
+    crabPlotDefaultPenForConnect
+    load astroSfig.sm
+    data "DataTable_stellar_mass_functions/datatable_PengYingjie2010_SMF_SFG.txt"
+    read {zLo 1 zHi 2 Mchar 5 Phi_1 6 alpha_1 7}
+    set z = (zLo+zHi)/2.0
+    do i=0,dimen(z)-1 {
+        calc_Schechter $(Mchar[$i]) $(Phi_1[$i]) $(alpha_1[$i]) 'PengYingjie'
+        set plot_x = Schechter_M
+        set plot_y = Schechter_P
+        ctype_by_z z[$i]
+        set plot_select = (plot_x>=10**8.8)
+        set plot_x = lg(plot_x) if(plot_select)
+        set plot_y = lg(plot_y) if(plot_select)
+        ltype 2 lweight 3.55
+        connect plot_x plot_y
+        relocate $(plot_x[0]) $(plot_y[0])
+        expand 0.65 lweight 3.55 putlabel 4 "PL10"
+    }
+
+overplot_SMF_PengYingjie_QG
+    # Peng Yingjie et al. 2010b - SDSS and zCOSMOS - SMF - 2010ApJ...721..193P
+    # Chabrier IMF
+    load crabPlot.sm
+    crabPlotDefaultPenForConnect
+    load astroSfig.sm
+    data "DataTable_stellar_mass_functions/datatable_PengYingjie2010_SMF_QG.txt"
+    read {zLo 1 zHi 2 Mchar 5 Phi_1 6 alpha_1 7 Phi_2 8 alpha_2 9}
+    set z = (zLo+zHi)/2.0
+    do i=0,dimen(z)-1 {
+        calc_Schechter $(Mchar[$i]) $(Phi_1[$i]) $(alpha_1[$i]) 'PengYingjie'
+        set plot_x = Schechter_M
+        set plot_y = Schechter_P
+        calc_Schechter $(Mchar[$i]) $(Phi_2[$i]) $(alpha_2[$i]) 'PengYingjie'
+        set plot_x = plot_x
+        set plot_y = plot_y + Schechter_P
+        ctype_by_z z[$i]
+        set plot_select = (plot_x>=10**8.6)
+        set plot_x = lg(plot_x) if(plot_select)
+        set plot_y = lg(plot_y) if(plot_select)
+        ltype 1 lweight $(3.55+1.00)
+        connect plot_x plot_y
+        relocate $(plot_x[0]) $(plot_y[0])
+        expand 0.65 lweight 3.55 putlabel 4 "PL10"
+    }
+
+overplot_SMF_PengYingjie_ALL
+    # Peng Yingjie et al. 2010b - SDSS and zCOSMOS - SMF - 2010ApJ...721..193P
+    # Chabrier IMF
+    load crabPlot.sm
+    crabPlotDefaultPenForConnect
+    load astroSfig.sm
+    data "DataTable_stellar_mass_functions/datatable_PengYingjie2010_SMF_QG.txt"
+    read {zLo 1 zHi 2 Mchar_1 5 Phi_1 6 alpha_1 7 Phi_2 8 alpha_2 9}
+    data "DataTable_stellar_mass_functions/datatable_PengYingjie2010_SMF_SFG.txt"
+    read {zLo 1 zHi 2 Mchar_3 5 Phi_3 6 alpha_3 7}
+    set z = (zLo+zHi)/2.0
+    do i=0,dimen(z)-1 {
+        calc_Schechter $(Mchar_1[$i]) $(Phi_1[$i]) $(alpha_1[$i]) 'PengYingjie'
+        set plot_x = Schechter_M
+        set plot_y = Schechter_P
+        calc_Schechter $(Mchar_1[$i]) $(Phi_2[$i]) $(alpha_2[$i]) 'PengYingjie'
+        set plot_x = Schechter_M
+        set plot_y = plot_y + Schechter_P
+        calc_Schechter $(Mchar_3[$i]) $(Phi_3[$i]) $(alpha_3[$i]) 'PengYingjie'
+        set plot_x = Schechter_M
+        set plot_y = plot_y + Schechter_P
+        ctype_by_z z[$i]
+        set plot_select = (plot_x>=10**8.8)
+        set plot_x = lg(plot_x) if(plot_select)
+        set plot_y = lg(plot_y) if(plot_select)
+        ltype 0 lweight 3.55
+        connect plot_x plot_y
+        relocate $(plot_x[0]) $(plot_y[0])
+        expand 0.65 lweight 3.55 putlabel 4 "PL10"
+    }
+
+overplot_SMF_Grazian
+    # Grazian et al. 2015 (2014 arxiv) is using Salpeter IMF, 
+    # lg-Salpeter-SFR = lg-ChabrierIMF-SFR + lg(1.73) dex
+    load crabPlot.sm
+    crabPlotDefaultPenForConnect
+    load astroSfig.sm
+    data "DataTable_stellar_mass_functions/datatable_Grazian2015_SMF.txt"
+    read {zLo 1 zHi 2 Mchar 5 Phi_1 6 alpha_1 7}
+    set Mchar = Mchar - lg(1.73) # convert to Chabrier IMF
+    set z = (zLo+zHi)/2.0
+    do i=0,dimen(z)-1 {
+        calc_Schechter $(Mchar[$i]) $(Phi_1[$i]) $(alpha_1[$i]) 'Grazian'
+        set plot_x = Schechter_M
+        set plot_y = Schechter_P
+        ctype_by_z z[$i]
+        set plot_select = (plot_x>=10**(9.0+0.2*$i))
+        set plot_x = lg(plot_x) if(plot_select)
+        set plot_y = lg(plot_y) if(plot_select)
+        ltype 0 lweight 3.55
+        connect plot_x plot_y
+        relocate $(plot_x[0]) $(plot_y[0])
+        expand 0.65 lweight 3.55 putlabel 4 "G15"
+    }
+
+overplot_SMF_Davidzon
+    # Davidzon et al. 2017 (2017arXiv170102734D) is using Chabrier IMF, Same as ours.
+    load crabPlot.sm
+    crabPlotDefaultPenForConnect
+    load astroSfig.sm
+    data "DataTable_stellar_mass_functions/datatable_Davidzon2017_SMF_ALL.txt"
+    read {zLo 1 zHi 2 Mchar 3 Phi_1 4 alpha_1 5 Phi_2 6 alpha_2 7}
+    set z = (zLo+zHi)/2.0
+    do i=0,dimen(z)-1 {
+        if(z[$i]>=0.0) {
+            calc_Schechter $(Mchar[$i]) $(Phi_1[$i]) $(alpha_1[$i])
+            set plot_x = Schechter_M
+            set plot_y = Schechter_P
+            calc_Schechter $(Mchar[$i]) $(Phi_2[$i]) $(alpha_2[$i])
+            set plot_x = Schechter_M
+            set plot_y = plot_y + Schechter_P
+            ctype_by_z z[$i]
+            set plot_select = (plot_x>=10**(9.5))
+            set plot_x = lg(plot_x) if(plot_select)
+            set plot_y = lg(plot_y) if(plot_select)
+            ltype 0 lweight 3.55
+            connect plot_x plot_y
+            relocate $(plot_x[0]) $(plot_y[0])
+            expand 0.65 lweight 3.55 putlabel 4 "D17"
+        }
+    }
+
+overplot_SMF_Davidzon_SFG
+    # Davidzon et al. 2017 (2017arXiv170102734D) is using Chabrier IMF, Same as ours.
+    load crabPlot.sm
+    crabPlotDefaultPenForConnect
+    load astroSfig.sm
+    data "DataTable_stellar_mass_functions/datatable_Davidzon2017_SMF_SFG.txt"
+    read {zLo 1 zHi 2 Mchar 3 Phi_1 4 alpha_1 5 Phi_2 6 alpha_2 7}
+    set z = (zLo+zHi)/2.0
+    do i=0,dimen(z)-1 {
+        if(z[$i]>=0.0) {
+            calc_Schechter $(Mchar[$i]) $(Phi_1[$i]) $(alpha_1[$i])
+            set plot_x = Schechter_M
+            set plot_y = Schechter_P
+            calc_Schechter $(Mchar[$i]) $(Phi_2[$i]) $(alpha_2[$i])
+            set plot_x = Schechter_M
+            set plot_y = plot_y + Schechter_P
+            ctype_by_z z[$i]
+            set plot_select = (plot_x>=10**(9.5))
+            set plot_x = lg(plot_x) if(plot_select)
+            set plot_y = lg(plot_y) if(plot_select)
+            ltype 2 lweight 3.55
+            connect plot_x plot_y
+            relocate $(plot_x[0]) $(plot_y[0])
+            expand 0.65 lweight 3.55 putlabel 4 "D17"
+        }
+    }
+
+overplot_SMF_Davidzon_QG
+    # Davidzon et al. 2017 (2017arXiv170102734D) is using Chabrier IMF, Same as ours.
+    load crabPlot.sm
+    crabPlotDefaultPenForConnect
+    load astroSfig.sm
+    data "DataTable_stellar_mass_functions/datatable_Davidzon2017_SMF_QG.txt"
+    read {zLo 1 zHi 2 Mchar 3 Phi_1 4 alpha_1 5 Phi_2 6 alpha_2 7}
+    set z = (zLo+zHi)/2.0
+    do i=0,dimen(z)-1 {
+        if(z[$i]>=0.0) {
+            calc_Schechter $(Mchar[$i]) $(Phi_1[$i]) $(alpha_1[$i])
+            set plot_x = Schechter_M
+            set plot_y = Schechter_P
+            calc_Schechter $(Mchar[$i]) $(Phi_2[$i]) $(alpha_2[$i])
+            set plot_x = Schechter_M
+            set plot_y = plot_y + Schechter_P
+            ctype_by_z z[$i]
+            set plot_select = (plot_x>=10**(9.5))
+            set plot_x = lg(plot_x) if(plot_select)
+            set plot_y = lg(plot_y) if(plot_select)
+            ltype 1 lweight 5.55
+            connect plot_x plot_y
+            relocate $(plot_x[0]) $(plot_y[0])
+            expand 0.65 lweight 3.55 putlabel 4 "D17"
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+overplot_SMF_dzliu_model
+    # assuming CSFRD
+    load crabPlot.sm
+    crabPlotDefaultPenForConnect
+    macro read a_dzliu_code_Plot_CSMD_dzliu_model.sm
+    calc_CSMD_from_CSFRD 'LDD17-lognormal-revised'
+    #calc_CSMD_from_CSFRD 'LDD17-lognormal'
+    # the above subroutine will create:
+    #   z, Mstar_cumulative, Mstar_differential, Mstar_loss_count, zTime
+    # 
+    # 
+    # Now we got the total amount of stellar mass
+    # Distribution into SMF
+    # We are assuming that SFG galaxies have the same Schechter_P at all redshifts
+    set Mchar = z*0.0 + 10.67 + 0.28 - (lg(1+z))*0.00
+    set alpha = z*0.0 - 1.30 - (lg(1+z))*0.1
+    set alpha = z*0.0 - 1.30 - (lg(1+z))*0.00
+    set Phi = z*0.0 + 1.0
+    # 
+    # 
+    # Prepare output
+    !mkdir "result_datatable_per_redshift_bin" 2>/dev/null
+    # 
+    # 
+    # Now we got the CSFRD of each time bin
+    do i=0,dimen(z)-1 {
+        # 
+        # 
+        # define 
+        define do_Construction 1
+        define do_Mass_Quenching 0
+        define do_Merger_Quenching 0
+        define do_Cluster_Quenching 0
+        # 
+        # 
+        # SFG
+        echo calc_Schechter $(Mchar[$i]) 1.0 $(alpha[$i])
+        calc_Schechter $(Mchar[$i]) 1.0 $(alpha[$i])
+        set Schechter_P_SFG = Schechter_P
+        # 
+        # 
+        # Normalization
+        set Schechter_P_int = (Schechter_P_SFG)*Schechter_M if(Schechter_M>=10**8.0 && Schechter_M<=10**13.0)
+        set Schechter_M_total = sum(Schechter_P_int*Schechter_Mstep) # *Schechter_Mstep to account for Psi unit [dex-1]
+        set Schechter_P_SFG = Schechter_P_SFG  * (Mstar_cumulative[$i] / Schechter_M_total)
+        set Schechter_P_QG = Schechter_P_SFG * 0.0 + 1e-99
+        # 
+        # 
+        # -- do Construction of the SMF, instead of using SAM
+        if($do_Construction) {
+            # Construct the SMF of QG with double-Schechter function (MQG+NQG)
+            #set EEE_Mchar = lg((zAge[$i]/zAge[dimen(zAge)-1])*(10**10.73)) # 10.73*(1.0-lg(zAge[dimen(zAge)-1]-zAge[$i])/lg(zAge[dimen(zAge)-1]))
+            set EEE_Mchar_MQG = lg((10**10.72)*(1+z[$i])**(0.02))
+            set EEE_Mchar_NQG = lg((10**10.72)*(1+z[$i])**(0.02))
+            set EEE_Mchar_SFG = lg((10**10.72)*(1+z[$i])**(0.02))
+            set EEE_Phi_MQG = (4.000e-3)*(1+z[$i])**(-1.00)
+            set EEE_Phi_NQG = (0.226e-3)*(1+z[$i])**(-1.00)
+            set EEE_Phi_SFG = (0.900e-3)*(1+z[$i])**(-0.20)
+            set EEE_alpha_MQG = -0.40 + (z[$i])*(0.00)
+            set EEE_alpha_NQG = -1.40 + (z[$i])*(0.00)
+            set EEE_alpha_SFG = -1.40 + (z[$i])*(-0.06) # slope -- this makes too many low mass galaxiest at z>4 -- faint-end of the 24um number counts -- no, this is because stellar SED has too old age, f24um is underestimated!
+            #set EEE_alpha_SFG = -1.40 + (z[$i])*(-0.03) # slope
+            calc_Schechter $(EEE_Mchar_MQG) $(EEE_Phi_MQG) $(EEE_alpha_MQG)
+            set Schechter_P_MQG = Schechter_P
+            calc_Schechter $(EEE_Mchar_NQG) $(EEE_Phi_NQG) $(EEE_alpha_NQG)
+            set Schechter_P_NQG = Schechter_P
+            calc_Schechter $(EEE_Mchar_SFG) $(EEE_Phi_SFG) $(EEE_alpha_SFG)
+            set Schechter_P_SFG = Schechter_P
+            # 
+            set Schechter_P_QG = Schechter_P_MQG + Schechter_P_NQG
+            # 
+            #set Schechter_P_SFG = Schechter_P_SFG - Schechter_P_MQG - Schechter_P_NQG
+            #set Schechter_P_SFG = Schechter_P_SFG>1e-99 ? Schechter_P_SFG : 1e-99
+        }
+        # 
+        # 
+        # -- Major Merger Quenching
+        #if($do_Merger_Quenching) {
+        #    # see -- a_dzliu_code_Plot_SMF_dzliu_model_v1.sm
+        #}
+        # 
+        # 
+        # -- Mass Quenching / Morphological Quenching
+        #if($do_Mass_Quenching) {
+        #    # see -- a_dzliu_code_Plot_SMF_dzliu_model_v1.sm
+        #}
+        # 
+        # 
+        # Re-Normalization
+        set Schechter_P_int = (Schechter_P_QG+Schechter_P_SFG)*Schechter_M if(Schechter_M>=10**8.0 && Schechter_M<=10**13.0)
+        set Schechter_M_total = sum(Schechter_P_int*Schechter_Mstep) # *Schechter_Mstep to account for Psi unit [dex-1]
+        echo "Schechter_M_total = "$(lg(Schechter_M_total))" at z = "$(z[$i])", Mstar_cumulative = "$(lg(Mstar_cumulative[$i]))
+        set Schechter_P_SFG = Schechter_P_SFG * (Mstar_cumulative[$i] / Schechter_M_total)
+        set Schechter_P_QG = Schechter_P_QG * (Mstar_cumulative[$i] / Schechter_M_total)
+        set Phi[$i] = Mstar_cumulative[$i] / Schechter_M_total
+        # 
+        set Schechter_P_int = (Schechter_P_QG+Schechter_P_SFG)*Schechter_M if(Schechter_M>=10**8.0 && Schechter_M<=10**13.0)
+        set Schechter_M_total = sum(Schechter_P_int*Schechter_Mstep) # *Schechter_Mstep to account for Psi unit [dex-1]
+        echo "Schechter_M_total = "$(lg(Schechter_M_total))" at z = "$(z[$i])", Mstar_cumulative = "$(lg(Mstar_cumulative[$i]))
+        # 
+        # Plot SFG
+        if(1==1 || z[$i]==2 || z[$i]==3 || z[$i]==4 || z[$i]==5 || z[$i]==6 || z[$i]==7 || $i==dimen(z)-1) {
+            set plot_x = Schechter_M
+            set plot_y = Schechter_P_SFG
+            ctype_by_z z[$i]
+            set plot_select = (plot_x>=10**7.5)
+            set plot_x = lg(plot_x) if(plot_select)
+            set plot_y = lg(plot_y) if(plot_select)
+            ltype 2 lweight 0.50
+            connect plot_x plot_y
+            if($i==dimen(z)-1) {
+                relocate $(plot_x[0]) $(plot_y[0])
+                expand 0.5555 lweight 1.05 putlabel 4 "DL"
+            }
+        }
+        # 
+        # Plot QG
+        if(1==1 || z[$i]==2 || z[$i]==3 || z[$i]==4 || z[$i]==5 || z[$i]==6 || z[$i]==7 || $i==dimen(z)-1) {
+            set plot_x = Schechter_M
+            set plot_y = Schechter_P_QG
+            ctype_by_z z[$i]
+            set plot_select = (plot_x>=10**7.5)
+            set plot_x = lg(plot_x) if(plot_select)
+            set plot_y = lg(plot_y) if(plot_select)
+            ltype 1 lweight 0.50
+            connect plot_x plot_y
+            if($i==dimen(z)-1) {
+                relocate $(plot_x[0]) $(plot_y[0])
+                expand 0.5555 lweight 1.05 putlabel 4 "DL"
+            }
+        }
+        # 
+        # Plot SFG+QG
+        if(1==1 || z[$i]==2 || z[$i]==3 || z[$i]==4 || z[$i]==5 || z[$i]==6 || z[$i]==7 || $i==dimen(z)-1) {
+            set plot_x = Schechter_M
+            set plot_y = Schechter_P_SFG + Schechter_P_QG
+            ctype_by_z z[$i]
+            set plot_select = (plot_x>=10**7.5)
+            set plot_x = lg(plot_x) if(plot_select)
+            set plot_y = lg(plot_y) if(plot_select)
+            ltype 0 lweight 0.50
+            connect plot_x plot_y
+            if($i==dimen(z)-1) {
+                relocate $(plot_x[0]) $(plot_y[0])
+                expand 0.5555 lweight 1.05 putlabel 4 "DL"
+            }
+        }
+        # 
+        # Output to datatable
+        print "result_datatable_per_redshift_bin/datatable_Phi_Mstar_z_"$(sprintf('%0.5f',zLo[$i]))"_"$(sprintf('%0.5f',zHi[$i]))".txt" \
+              '%15.7e %15.7e %15.7e %15.7e %15.7e %15.7e\n' \
+              {Schechter_M Schechter_P Schechter_P_SFG Schechter_P_QG Schechter_P_MQG Schechter_P_NQG}
+        # 
+        # Assuming SF main seq. and convert Mstar to SFR
+        set Schechter_SFR_SDB14 = calc_Sargent2014_SFR(z[$i],lg(Schechter_M))
+        set Schechter_SFR_BDM14 = calc_Bethermin2014_SFR(z[$i],lg(Schechter_M))
+        set Schechter_SFR_SPE15 = calc_Schreiber2014_SFR(z[$i],lg(Schechter_M))
+        set Schechter_SFR_SDB14 = Schechter_SFR_SDB14>1e-99 ? Schechter_SFR_SDB14 : 1e-99
+        set Schechter_SFR_BDM14 = Schechter_SFR_BDM14>1e-99 ? Schechter_SFR_BDM14 : 1e-99
+        set Schechter_SFR_SPE15 = Schechter_SFR_SPE15>1e-99 ? Schechter_SFR_SPE15 : 1e-99
+        set Schechter_SFR_SDB14 = Schechter_P_SFG * Schechter_SFR_SDB14
+        set Schechter_SFR_BDM14 = Schechter_P_SFG * Schechter_SFR_BDM14
+        set Schechter_SFR_SPE15 = Schechter_P_SFG * Schechter_SFR_SPE15
+        print "result_datatable_per_redshift_bin/datatable_Psi_Mstar_z_"$(sprintf('%0.5f',zLo[$i]))"_"$(sprintf('%0.5f',zHi[$i]))".txt" \
+              '%15.7e %20.7e %20.7e %20.7e %15.7e\n' \
+              {Schechter_M Schechter_SFR_SDB14 Schechter_SFR_BDM14 Schechter_SFR_SPE15 Schechter_P_SFG}
+        
+    }
+    
+
+ctype_by_z 01
+    # 
+    if(is_vector(z_Colors) && is_vector(z_Values) && $?1) {
+        #echo debug ctype_by_z $(z_Values[find_nearest(z_Values,$1)]) $($1)
+        ctype $(z_Colors[find_nearest(z_Values,$1)])
+    }
+
+
+find_nearest 02
+    # input: 
+    # $1 -- array
+    # $2 -- value to find
+    set TMP_find_arr = $1
+    set TMP_find_var = TMP_find_arr - ($2)
+    set TMP_find_var = abs(TMP_find_var)
+    set TMP_find_bin = 0,dimen(TMP_find_arr)-1
+    sort {TMP_find_var TMP_find_bin}
+    set $0 = TMP_find_bin[0]
+    return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,26 @@
+make_z_grid 00
+    # make_z_grid
+    #set zArray = {10.0 9.0 8.0 7.0 6.0 5.0 4.5 4.0 3.5 3.0 2.5 2.0 1.5 1.25 1.00 0.75 0.50 0.40 0.30 0.20 0.10 0.05 0.00}
+    #set zArray = {12.0 8.0 6.0 5.0 4.5 4.0 3.5 3.0 2.5 2.0 1.5 1.25 1.00 0.75 0.50 0.40 0.30 0.20 0.10 0.05 0.00}
+    #set zArray = {12.0 8.0 6.0 5.0 4.0 3.5 3.0 2.5 2.0 1.5 1.0 0.75 0.50 0.40 0.30 0.20 0.10 0.05 0.00}
+    #set zArray = {10.0 9.0 8.0 7.0 6.0 5.0 4.0 3.5 3.0 2.5 2.0 1.5 1.0 0.75 0.50 0.40 0.30 0.20 0.10 0.05 0.00}
+    #set zArray = {10.0 8.0 6.0 4.5 4.0 3.5 3.0 2.5 2.0 1.5 1.0 0.75 0.50 0.40 0.30 0.20 0.10 0.05 0.00}
+    #set zArray = 12.0,0.0,-0.05
+    set zArray_1 = 9.75,0.75,-0.5
+    set zArray_2 = {0.50 0.25 0.125 0.0625 0.03125 0.00000}
+    set zArray = zArray_1 concat zArray_2
+    set zIndex = 1,dimen(zArray)-1
+    set zLo = zArray[zIndex]
+    set zIndex = 0,dimen(zArray)-2
+    set zHi = zArray[zIndex]
+    set zStep = zHi - zLo
+    #set zStep = 0.25
+    #set zLo = 8.0,0.0,-$(zStep)
+    #set zHi = zLo+zStep
+    set z = (zLo+zHi)/2.0
+
+
+
+
+
+

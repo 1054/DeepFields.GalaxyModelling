@@ -1,0 +1,727 @@
+simu_Galaxies
+    # 
+    # See ../Cosmological_Galaxy_Modelling/a_dzliu_code_Simu_Galaxies_dzliu_model.sm
+    # 
+    # 
+    # 
+    macro read a_dzliu_code_Make_z_grid.sm
+    make_z_grid
+    # 
+    macro read a_dzliu_code_Make_Mstar_grid.sm
+    make_Mstar_grid
+    # 
+    load astroSfig.sm
+    # 
+    macro read a_dzliu_code_Plot_SMF_dzliu_model.sm
+    # 
+    !mkdir "result_simu_galaxies" 2>/dev/null
+    # 
+    do i=0,dimen(z)-1 {
+        # 
+        # Read stellar mass histogram
+        set z_str = 'z_' + sprintf('%0.5f',zLo[$i]) + '_' + sprintf('%0.5f',zHi[$i])
+        echo "--------------------------------------------------------------------"
+        #echo $(z_str)
+        data "result_datatable_per_redshift_bin/datatable_Phi_Mstar_"$(z_str)".txt"
+        read {Schechter_M 1 Schechter_P 2 Schechter_P_SFG 3 Schechter_P_QG 4 Schechter_P_MQG 5 Schechter_P_NQG 6}
+        # 
+        # Convert stellar mass distribution into SFR distribution, considering 2-SFM
+        set Schechter_SFR_MS_SDB14 = calc_Sargent2014_SFR(z[$i],lg(Schechter_M))
+        set Schechter_SFR_MS_BDM14 = calc_Bethermin2014_SFR(z[$i],lg(Schechter_M))
+        set Schechter_SFR_MS_SPE15 = calc_Schreiber2014_SFR(z[$i],lg(Schechter_M))
+        set Schechter_SFR_MS_SDB14 = 10**Schechter_SFR_MS_SDB14
+        set Schechter_SFR_MS_BDM14 = 10**Schechter_SFR_MS_BDM14
+        set Schechter_SFR_MS_SPE15 = 10**Schechter_SFR_MS_SPE15
+        set merger_fraction = 0.15 # * (Schechter_M/10**10.0)**(-0.2)
+                                   # -- Conselice 2014 ARAA -- https://ned.ipac.caltech.edu/level5/March14/Conselice/Conselice_contents.html -- https://arxiv.org/abs/1403.2783
+        set merger_fraction = (z[$i]<2.0) ? 0.01 * (1+z[$i])**2.465 : merger_fraction # 
+                                                                                      # -- Conselice 2008 -- see text before Section 5.4.2 -- http://adsabs.harvard.edu/abs/2008MNRAS.386..909C
+        set merger_fraction = (z[$i]<2.0 && Schechter_M>10**10.0) ? merger_fraction * (Schechter_M/10**10.0)**(-0.6) : merger_fraction # 
+                                                                                    # -- Conselice 2008 -- comparing Fig. 14 -- http://adsabs.harvard.edu/abs/2008MNRAS.386..909C
+        set merger_boost = 5.0 # with respect to sSFR, not SFE # 3.0 * (1+z[$i])**(0.35) # see Sargent 2014 Figure 5
+        set Schechter_SFR_SB_SDB14 = Schechter_SFR_MS_SDB14 * merger_boost
+        set Schechter_SFR_SB_BDM14 = Schechter_SFR_MS_BDM14 * merger_boost
+        set Schechter_SFR_SB_SPE15 = Schechter_SFR_MS_SPE15 * merger_boost
+        # 
+        # set sky area COSMOS 2 square-degree
+        set sky_area = 7200.0 # in square-arcmin
+        set sky_volume = calc_comoving_volume(z[$i],$(zHi[$i]-zLo[$i]),sky_area)
+        set Schechter_NGal_MS = Schechter_P_SFG * Schechter_Mstep * sky_volume * (1.0 - merger_fraction)
+        set Schechter_NGal_SB = Schechter_P_SFG * Schechter_Mstep * sky_volume * merger_fraction
+        # 
+        # consider cluster at certain redshift bin, 
+        # -- e.g. GN20 proto-cluster at z=4.0
+        #if(zLo[$i]<4.0 && zHi[$i]>=4.0) {
+        #    set gal_cluster_i = find_nearest(Schechter_M, 2.0e11) # GN20 stellar mass from Daddi et al. 2009GN20 instead of Tan et al. 2014
+        #    set Schechter_NGal_MS[gal_cluster_i] = Schechter_NGal_MS[gal_cluster_i] + 1 # GN20.2a, Tan et al. 2014
+        #    set Schechter_NGal_SB[gal_cluster_i] = Schechter_NGal_SB[gal_cluster_i] + 1 # GN20, Tan et al. 2014
+        #    set gal_cluster_i = find_nearest(Schechter_M, 3.8e10)
+        #    set Schechter_NGal_MS[gal_cluster_i] = Schechter_NGal_MS[gal_cluster_i] + 1 # GN20.2b, Tan et al. 2014
+        #    echo ""
+        #    echo "Simulating GN20 proto-cluster!"
+        #    echo ""
+        #}
+        ## -- e.g. HDF850.1 at z=5.2
+        #if(zLo[$i]<5.2 && zHi[$i]>=5.2) {
+        #    set gal_cluster_i = find_nearest(Schechter_M, 2.5e11/1.9) # corrected for weak lensing magnification of 1.9
+        #    set Schechter_NGal_MS[gal_cluster_i] = Schechter_NGal_MS[gal_cluster_i] + 1 # HDF850.1, Serjeant et al. 2014 (arXiv:1409.0558)
+        #    echo ""
+        #    echo "Simulating HDF850.1!"
+        #    echo ""
+        #}
+        ## -- e.g. ID12646 at z~6.5
+        #if(zLo[$i]<6.5 && zHi[$i]>=6.5) {
+        #    set gal_cluster_i = find_nearest(Schechter_M, 1.0e12) # uncorrected for weak lensing, neither do the flux data, so it's OK
+        #    set Schechter_NGal_MS[gal_cluster_i] = Schechter_NGal_MS[gal_cluster_i] + 1 # HDF850.1, Serjeant et al. 2014 (arXiv:1409.0558)
+        #    echo ""
+        #    echo "Simulating ID12646!"
+        #    echo ""
+        #}
+        ## -- e.g. ID11580 at z~2.
+        #if(zLo[$i]<2.758 && zHi[$i]>=2.758) {
+        #    set gal_cluster_i = find_nearest(Schechter_M, 8.3550003E10) # 
+        #    set Schechter_NGal_SB[gal_cluster_i] = Schechter_NGal_SB[gal_cluster_i] + 1 # ID11580 is very bright in 850um image, but could not be simulated by our model at z~2.7, so I added it by hand. 
+        #    echo ""
+        #    echo "Simulating ID11580!"
+        #    echo ""
+        #}
+        # 
+        # 
+        do j=0,dimen(Schechter_M)-1 {
+            if(Schechter_M[$j]>=10**9.0) {
+                # f_str
+                set f_str = z_str +  '_lgMstar_' + sprintf('%0.3f',lg(Schechter_M[$j]))
+                # Monte Carlo MS galaxies
+                set Mstar_log10 = lg(Schechter_M[$j])
+                set SFR_MS_log10 = lg(Schechter_SFR_MS_SDB14[$j])
+                set SFR_SB_log10 = lg(Schechter_SFR_SB_SDB14[$j])
+                set SFR_MS_delta = 0.15 # dex
+                set SFR_SB_delta = 0.15 # dex
+                set NGal_MS = Schechter_NGal_MS[$j]
+                set NGal_SB = Schechter_NGal_SB[$j]
+                chdir "result_simu_galaxies/"
+                print $(f_str)"_MS_SFR.dat" \
+                      '%15.3f %15.7e %15.7e\n' {Mstar_log10 SFR_MS_log10 SFR_MS_delta}
+                print $(f_str)"_SB_SFR.dat" \
+                      '%15.3f %15.7e %15.7e\n' {Mstar_log10 SFR_SB_log10 SFR_SB_delta}
+                print $(f_str)"_MS_NGal.dat" \
+                      '%15.3e\n' {NGal_MS}
+                print $(f_str)"_SB_NGal.dat" \
+                      '%15.3e\n' {NGal_SB}
+                #set NGal_MS = int(NGal_MS)
+                #set NGal_SB = int(NGal_SB)
+                set NGal_MS = int(NGal_MS+0.5)
+                set NGal_SB = int(NGal_SB+0.5)
+                if(NGal_MS>0) {
+                    echo CrabPhotMonteCarlo $(f_str)"_MS_SFR.dat" $(NGal_MS) $(f_str)"_MS_MonteCarlo"
+                        !CrabPhotMonteCarlo $(f_str)"_MS_SFR.dat" $(NGal_MS) $(f_str)"_MS_MonteCarlo"
+                        #exit
+                }
+                if(NGal_SB>0) {
+                    echo CrabPhotMonteCarlo $(f_str)"_SB_SFR.dat" $(NGal_SB) $(f_str)"_SB_MonteCarlo"
+                        !CrabPhotMonteCarlo $(f_str)"_SB_SFR.dat" $(NGal_SB) $(f_str)"_SB_MonteCarlo"
+                        #exit
+                }
+                chdir "../"
+            }
+        }
+    }
+
+
+
+
+generate_Galaxy_SEDs
+    # 
+    load astroSfig.sm
+    # 
+    macro read a_dzliu_code_Plot_SMF_dzliu_model.sm
+    # 
+    # Load Dust SED templates
+    data "SED_template_Magdis/README_dliu"
+    read {Ui 2 UvalU 3 Uz1 4 Uz2 5} # see -- fit_engine.sm # Update to Bethermin2014 new from Magdis
+    set gal_w = -1,6,.01 # do not change the grid .01
+    set Uitot = Ui concat {101}
+    set UvalU = UvalU concat 101 ###<Corrected>### Update to Bethermin2014 -- do not change here, this is the SB template!
+    foreach Uid Uitot {
+        data "SED_template_Magdis/sed_z"$Uid"_U"$Uid"_radio.txt"
+        read {w_DL07 1 f_DL07 2}
+        set f_DL07 = f_DL07*w_DL07 # vLv to Lv
+        set w_DL07 = lg(w_DL07)
+        #spline ww_DL07 ff_DL07 w_DL07 f_DL07
+        set f_DL07_$Uid = f_DL07
+        #smooth f_DL07 f_DL07_$Uid 13
+        set f_DL07_$Uid = f_DL07_$Uid>0 ? f_DL07_$Uid : 0
+        set f_INT = f_DL07_$Uid/10**w_DL07 # vLv
+        set w_FIR = w_DL07>lg(8) && w_DL07<lg(1000)
+        set f_INT = f_INT if(w_FIR)
+        set L_INT = sum(f_INT)*.01/lg(exp(1)) # do not change the grid .01
+        set f_DL07_$Uid = f_DL07_$Uid/L_INT # normalize to L_IR_8_1000um 1.0
+        #go_Changing_qIR #<20161210># now replaced by go_Changing_qIR_with_z
+        #echo U $Uid Lbol $Lbol
+    }
+    # 
+    # Load Stellar SED templates
+    data "SED_template_FSPS/Z_EQ_1.0_Zsun/output_spec_params.dat"
+    read {FSPS_Ages 1 FSPS_Masses 2}
+    data "SED_template_FSPS/Z_EQ_1.0_Zsun/output_wave_fluxes.dat"
+    read w_FSPS 1.f
+    set w_FSPS = lg(w_FSPS/10000) # make w unit um. Note that f unit is Lsun Hz-1, normalized to FSPS_Mass. 
+    #set FSPS_Masses = FSPS_Masses if(FSPS_Ages<=lg(3e9)) # limit SED to below an age of 3 Gyr
+    #set FSPS_Ages = FSPS_Ages if(FSPS_Ages<=lg(3e9)) # limit SED to below an age of 3 Gyr
+    do i=1,dimen(FSPS_Ages) {
+        read f_FSPS_$i $($i+1).f
+    }
+    # 
+    # Load Simu Galaxy List
+    data "result_simu_galaxies_list.txt"
+    read {SimGal_file_list 1.s}
+    # 
+    # Change dir to output dir
+    chdir "result_simu_galaxies"
+    # 
+    do i=0,dimen(SimGal_file_list)-1 {
+        # 
+        # input lgSFR file
+        set gal_in_SFR = '\"'+SimGal_file_list[$i]+'\"'
+        !echo $(gal_in_SFR) | sed -e 's/_/ /g' > "tmp.txt"
+        verbose 0 
+        data "tmp.txt" read {zLo 2 zHi 3 lgMstar 5 Type_SED 6.s}
+        data $(gal_in_SFR)
+        read {lgSFR 2}
+        verbose 1
+        # 
+        # 
+        #set zSel = (zLo<4.0 && zHi>=4.0 && lgMstar==11.00)
+        set zSel = 1
+        if(zSel) {
+            # 
+            # randomize z from zLo to zHi
+            set z = random(1) * (zHi-zLo) + zLo
+            set zAge = calc_cosmic_age(z) # Gyr
+            # 
+            # convert lgSFR to lgLIR
+            set lgLIR = lgSFR + 10.0 # assuming Chabrier IMF, so L_IR_8_1000um = 1e10 * SFR
+            set L_IR = 10**lgLIR
+            set SFR = 10**lgSFR
+            set SFR = SFR>1e-99? SFR : 1e-99
+            # 
+            # determine Umean, which determines dust SED
+            if(Type_SED=='MS') {
+                set Umean = float(calc_Bethermin2014_U(z))
+            } else {
+                set Umean = float(101)
+            }
+            # 
+            # calculate lumdist
+            set dL = calc_lumdist(z)
+            # 
+            # calculate specific SFR
+            set Mstar = 10**lgMstar
+            set sSFR = SFR / Mstar * 1e9 # Gyr^{-1}
+            set lgsSFR = lg(sSFR)
+            # 
+            # assuming galaxy age
+            set Age = 1.0/sSFR # set galaxy age to 1.0/sSFR (~5Gyr at z~0.1, ~1Gyr at z~1, to ~0.4Gyr at z~4)
+            #set Age = Mstar<1e12 ? Age * (Mstar/1e12)**0.1 : Age # set younger galaxy age to lower mass galaxies
+            set Age = Mstar<1e12 ? Age * (Mstar/1e12)**0.12 : Age # set younger galaxy age to lower mass galaxies -- 
+            set Age = Age>zAge ? zAge : Age # limit galaxy age to no younger than cosmic age
+            set Age = Age>1.5 ? 1.5 : Age # limit galaxy age to no older than 1.5Gyr, because they are star-forming. 
+            #set Age = Age<0.5 ? 0.5 : Age # limit galaxy age to no younger than 500Myr. 
+            set Age = Age<0.3 ? 0.3 : Age # limit galaxy age to no younger than 300Myr. 
+            # 
+            # assuming metallicity <TODO> adopting FMR
+            # 
+            # assuming galaxy attenuation of the stellar SED, E(B-V), anti-correlated with stellar mass and SFR, goes from 0.01 with lgMstar~8.0 to 1.0 with lgMstar~12.0
+            #declare tt1 0.f
+            #declare tt2 0.f
+            #declare tt3 0.f
+            #do tti = 8.0,12.5,0.5 {
+            #    do ttj = 0.0,3.5,0.5 {
+            #        set tt1 = tt1 concat $tti
+            #        set tt2 = tt2 concat $ttj
+            #        set tt3 = tt3 concat $((10**$tti/1e12)**0.5 * (10**$ttj/500)**1.0)
+            #    }
+            #}
+            #print {tt1 tt2 tt3}
+            set EBV = (L_IR>1e9) ? lg(L_IR/1e9)*0.15 : 0.0 # E(B-V) increases with L_IR -- https://arxiv.org/pdf/1403.3615.pdf -- Figure 10
+            set EBV = (Age>0.5) ? EBV*((Age/0.5)**0.1) : EBV # E(B-V) increases with Age or Metallicity, and only when Age>500Myr. 
+            #set EBV = (Type_SED=='SB') ? EBV*1.2 : EBV # considering starburst has x1.2 the EBV
+            #--> 20170523 19h02m Now working well for GN20. 
+            # 
+            # 
+            # 
+            # Interpolate Dust SED -- from (z,U)-dependent dust SED templates
+            # and normalize dust SED by galaxy L_IR
+            #smooth gal_f gal_f_sm 13
+            get_Magdis_SED_Changing_qIR_with_z
+            set ff_DL07 = f_DL07/(1+z) # unit is mJy, needs re-normalization. 
+            set ww_DL07 = lg((10**w_DL07)*(1+z))
+            spline ww_DL07 ff_DL07 gal_w gal_f
+            set gal_L_IR = calc_ltir(10**gal_w, gal_f, z)
+            set gal_f = gal_f / gal_L_IR * L_IR
+            set gal_f = gal_f>1e-99 ? gal_f : 1e-99
+            set gal_L_IR_check = calc_ltir(10**gal_w, gal_f, z)
+            set gal_f_dust = gal_f
+            # 
+            # 
+            # 
+            # Generate Stellar SED -- from FSPS stellar SED templates
+            # and normalize stellar SED by galaxy lgMstar
+            set FSPS_index = find_nearest(FSPS_Ages,$(lg(zAge)+9-0.5)) # FSPS_Ages have unit of yr, not Gyr, and are in log10. 
+            set FSPS_Mass = FSPS_Masses[FSPS_index]
+            set Lsun_Mpc2_to_mJy_GHz = 40.31970
+            set ff_FSPS = f_FSPS_$(FSPS_index+1) # unit is Lsun Hz-1, normalized to (10**FSPS_Mass). 
+            set ww_FSPS = lg((10**w_FSPS)*(1+z))
+            set ff_FSPS_unat = ff_FSPS
+            set ff_FSPS = ff_FSPS * 10**(-0.4*EBV*(-0.88+2.7/(10**w_FSPS))) # reddening using rest-frame wavelength
+            spline ww_FSPS ff_FSPS gal_w gal_f
+            set gal_f = gal_f / (10**FSPS_Mass) * (10**lgMstar) / (4.0*pi*dL**2) * Lsun_Mpc2_to_mJy_GHz * 1e9 * (1+z) # dL^{-2} (1+z)
+            set gal_f = gal_f>1e-99 ? gal_f : 1e-99
+            spline ww_FSPS ff_FSPS_unat gal_w gal_f_unat
+            set gal_f_unat = gal_f_unat / (10**FSPS_Mass) * (10**lgMstar) / (4.0*pi*dL**2) * Lsun_Mpc2_to_mJy_GHz * 1e9 * (1+z) # dL^{-2} (1+z)
+            set gal_f_unat = gal_f_unat>1e-99 ? gal_f : 1e-99
+            set gal_f_star = gal_f
+            #smooth gal_f gal_f_sm 13
+            #set gal_f_unat = gal_f
+            #set gal_f_star = gal_f #* 10**(-0.4*EBV*(-0.88+2.7/(10**gal_w))) # reddening using rest-frame wavelength
+            # 
+            # 
+            # --> Checking
+            #     two problems: 
+            #                   (1) stellar SED is in general a factor of 2--3 lower than observed data points
+            #                   (2) 100um and 160um number counts are a factor of 1.5 higher than observed values, but longer wavelength number counts are OK. 
+            # 
+            # 
+            # 
+            # Combine the SED components
+            set gal_f = lg(gal_f_star+gal_f_dust)
+            set gal_f_unat = lg(gal_f_unat)
+            set gal_f_star = lg(gal_f_star)
+            set gal_f_dust = lg(gal_f_dust)
+            # 
+            # 
+            # 
+            # Prepare output name
+            !echo $(SimGal_file_list[$i]) | perl -p -e 's%(.*)/[^/].*.dat%\1/%g' > "tmp.txt"
+            verbose 0 data "tmp.txt" read {gal_out_name 1.s} verbose 1
+            # 
+            # Output SED -- total, stellar and dust
+            set gal_out_SED = '\"'+gal_out_name+'SED.dat\"'
+            !echo "Writing SED to "$(gal_out_SED)
+            print $(gal_out_SED) '%15.6f %15.6f %15.6f %15.6f %15.6f\n' {gal_w gal_f gal_f_unat gal_f_star gal_f_dust}
+            # 
+            # Output z SFR
+            set gal_out_file = '\"'+gal_out_name+'z_Mstar_SFR.dat'+'\"'
+            !echo "Writing z etc to "$(gal_out_file)
+            print $(gal_out_file) '%12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12s\n' {z zLo zHi lgMstar lgSFR lgLIR lgsSFR Umean Age EBV qIR Type_SED}
+        }
+    }
+    # 
+    chdir "../"
+
+
+
+
+get_Magdis_SED_Changing_qIR_with_z
+    # 
+    if(!is_vector(Umean)) {
+        print 'Error! get_Magdis_SED_Changing_qIR_with_z() needs Umean!\n' {}
+        exit
+    }
+    if(!is_vector(z)) {
+        print 'Error! get_Magdis_SED_Changing_qIR_with_z() needs Umean!\n' {}
+        exit
+    }
+    if(!is_vector(UvalU)) {
+        print 'Error! get_Magdis_SED_Changing_qIR_with_z() needs UvalU!\n' {}
+        exit
+    }
+    if(!is_vector(Uitot)) {
+        print 'Error! get_Magdis_SED_Changing_qIR_with_z() needs Uitot!\n' {}
+        exit
+    }
+    if(!is_vector(w_DL07)) {
+        print 'Error! get_Magdis_SED_Changing_qIR_with_z() needs w_DL07!\n' {}
+        exit
+    }
+    if(!is_vector(f_DL07_1)) {
+        print 'Error! get_Magdis_SED_Changing_qIR_with_z() needs f_DL07_1!\n' {}
+        exit
+    }
+    # 
+    # backup output vector variable "f_DL07"
+    if(is_vector(f_DL07)) {
+        set f_DL07_backup = f_DL07
+    }
+    # 
+    # Interpolate Magdis SED template by Umean, output vector variable "f_DL07"
+    set Umean_index_lo = 0,dimen(Uitot)-1
+    set Umean_index_hi = 0,dimen(Uitot)-1
+    if(sum(UvalU<Umean)>0) { 
+        set Umean_index_lo = Umean_index_lo if(UvalU<Umean) 
+        set Umean_diff_lo = Umean-UvalU if(UvalU<Umean)
+        sort {Umean_diff_lo Umean_index_lo}
+        set Umean_index_lo = Umean_index_lo[0]
+    }
+    if(sum(UvalU>=Umean)>0) { 
+        set Umean_index_hi = Umean_index_hi if(UvalU>=Umean)
+        set Umean_diff_hi = UvalU-Umean if(UvalU>=Umean)
+        sort {Umean_diff_hi Umean_index_hi}
+        set Umean_index_hi = Umean_index_hi[0]
+    }
+    if(sum(UvalU<Umean)>0 && sum(UvalU>=Umean)>0) {
+        set Umean_val_lo = UvalU[Umean_index_lo]
+        set Umean_val_hi = UvalU[Umean_index_hi]
+        set Umean_wei_lo = (Umean_val_hi-Umean)/(Umean_val_hi-Umean_val_lo)
+        set Umean_wei_hi = (Umean-Umean_val_lo)/(Umean_val_hi-Umean_val_lo)
+        set f_DL07 = Umean_wei_lo * f_DL07_$(Uitot[Umean_index_lo]) + Umean_wei_hi * f_DL07_$(Uitot[Umean_index_hi]) # linear interpolation
+        #print {Umean_val_lo Umean_val_hi Umean_wei_lo Umean_wei_hi}
+    } else {
+        if(sum(UvalU<Umean)>0) { 
+            set f_DL07 = f_DL07_$(Uitot[Umean_index_lo]) # linear
+        } else { 
+            set f_DL07 = f_DL07_$(Uitot[Umean_index_hi]) # linear
+        }
+    }
+    # 
+    # renormalize to redshift-dependent qIR
+    set template_vnu = (2.99792458e5/10**w_DL07) # Ghz
+    set template_wum = w_DL07 # um in log10
+    set original_qIR = 2.5 # 
+    echo "go_Changing_qIR_with_z z="$(z)" qIR="$(original_qIR)" (original from Magdis)"
+    set changing_qIR = 2.35*(1+(z))**(-0.12)+lg(1.91) # changing from default qIR = 2.5 to qIR=2.35*(1+z)**(-0.12)+lg(1.91) (Magnelli 2015A%26A...573A..45M)
+    echo "go_Changing_qIR_with_z z="$(z)" qIR="$(changing_qIR)" (for current redshift)"
+    set original_fIR = (template_vnu/1.4)**(-0.8) / 10**original_qIR * 70.14060 # 3.75e12 / 1e9 # and some coefficient # normalized to Lbol mJy GHz
+    set changing_fIR = (template_vnu/1.4)**(-0.8) / 10**changing_qIR * 70.14060 # 3.75e12 / 1e9 # and some coefficient # normalized to Lbol mJy GHz
+    set original_f   = f_DL07
+    set template_wum_1 = lg(2.99792458e5/1.4) # um of 1.4 GHz
+    set original_wum_1 = lg(2.99792458e5/1.4) # um of 1.4 GHz
+    set changing_wum_1 = lg(2.99792458e5/1.4) # um of 1.4 GHz
+    spline template_wum f_DL07       template_wum_1 template_fIR_1
+    spline template_wum original_fIR original_wum_1 original_fIR_1
+    spline template_wum changing_fIR changing_wum_1 changing_fIR_1
+    set original_fIR = original_fIR / original_fIR_1 * template_fIR_1 #<20161229># make sure oringal_fIR = template_fIR at 1.4 GHz
+    set changing_fIR = changing_fIR / original_fIR_1 * template_fIR_1
+    set f_DL07_Original_qIR = f_DL07
+    set f_DL07_Changing_qIR_with_z = f_DL07 - original_fIR + changing_fIR
+    set qIR = changing_qIR
+    set f_DL07 = f_DL07_Changing_qIR_with_z
+    #print "aaa_"$xname".tmp" '%17g%17g%17g%17g%17g%27g\n' <template_vnu f_DL07 original_f original_fIR changing_fIR f_DL07_Changing_qIR_with_z>
+    echo "go_Changing_qIR_with_z ok"
+
+
+
+
+generate_Galaxy_RADecs 00
+    # 
+    # 
+    macro read a_dzliu_code_Make_z_grid.sm
+    make_z_grid
+    # 
+    macro read a_dzliu_code_Make_Mstar_grid.sm
+    make_Mstar_grid
+    # 
+    load astroSfig.sm
+    # 
+    macro read a_dzliu_code_Plot_SMF_dzliu_model.sm
+    # 
+    # Load Simu Galaxy List
+    data "result_simu_galaxies_list.txt"
+    read {SimGal_file_list 1.s}
+    # 
+    # Initialize galaxy ra dec wave flux array, and read mask image
+    declare gal_id $(dimen(SimGal_file_list)).f
+    declare gal_ra $(dimen(SimGal_file_list)).f
+    declare gal_dec $(dimen(SimGal_file_list)).f
+    set map_ra = 150.11916667 # offcial website 10:00:28.600 # 150.03875 # UltraVISTA Ks band image area
+    set map_dec = 2.20583333 # offcial website +02:12:21.00 # 2.2082778 # UltraVISTA Ks band image area
+    set map_major = 1.60 # roughly consistent with UltraVISTA Ks # 1.515 # UltraVISTA Ks band image area # length along X axis, in degrees.
+    set map_minor = 1.25 # roughly consistent with UltraVISTA Ks # 1.250 # UltraVISTA Ks band image area # length along Y axis, in degrees.
+    set map_theta = 0.0 # theta angle starts from +X axis. 
+    #set map_mask_fits_image = 'none' # 'n_mips_1_s1_v0_37_rms_ED.fits'
+    set map_mask_upper_threshold = 1e10 # we set no threshold for COSMOS
+    set gal_min_sep = 1.00 # galaxy minimum separation in arcsec
+    #define file_type FITS
+    #image n_mips_1_s1_v0_37_rms_ED.fits
+    # 
+    # Read existing catalog galaxy ra dec, for which we will avoid to overlap
+    data "master_catalog_single_entry_only_ID_RA_Dec_v20170504a.txt" read {cat_ra 2.f cat_dec 3.f}
+    # 
+    # Change dir to input dir
+    chdir "result_simu_galaxies"
+    # 
+    # Check <TODO>
+    if(is_file("tmp_check_major_minor_ra_dec.txt")) {!rm "tmp_check_major_minor_ra_dec.txt"}
+    if(is_file("tmp_check_px_py_rms_noise.txt")) {!rm "tmp_check_px_py_rms_noise.txt"}
+    # 
+    # Loop each galaxy
+    define i 0
+    while { $i <= dimen(SimGal_file_list)-1 } {
+        # 
+        # Read galaxy SED, z, Mstar, SFR, etc.
+        !echo $(SimGal_file_list[$i]) | perl -p -e 's%(.*)/[^/].*.dat%\1/%g' > "tmp.txt"
+        verbose 0 data "tmp.txt" read {gal_in_dir 1.s}
+        set gal_in_SED = '\"'+gal_in_dir+'SED.dat\"'
+        set gal_in_z_Mstar_SFR = '\"'+gal_in_dir+'z_Mstar_SFR.dat\"'
+        #data $(gal_in_SED) read {w 1.f f 2.f} # w is in log10 and in unit of um, flux is in also in log10 and in unit of mJy. 
+        data $(gal_in_z_Mstar_SFR) read {z 1.f zLo 2.f zHi 3.f lgMstar 4.f lgSFR 5.f lgLIR 6.f lgsSFR 7.f Umean 8.f Age 9.f EBV 10.f qIR 11.f Type_SED 12.s}
+        verbose 1
+        # 
+        # Randomize RA Dec
+        if(is_vector(ra)) {unset ra}
+        if(is_vector(dec)) {unset dec}
+        while { !is_vector(ra) || !is_vector(dec) } {
+            set major = (random(1)-0.5) * map_major # -0.5 to +0.5
+            set minor = (random(1)-0.5) * map_minor # -0.5 to +0.5
+            set sep_ra = - (major*cos(map_theta/180.0*pi) - minor*sin(map_theta/180.0*pi)) / cos(map_dec/180.0*pi) # RA increases in -X direction!!
+            set sep_dec = (major*sin(map_theta/180.0*pi) + minor*cos(map_theta/180.0*pi))
+            set try_ra = map_ra + sep_ra
+            set try_dec = map_dec + sep_dec
+            #--> coordinate rotating, see -- https://www.siggraph.org/education/materials/HyperGraph/modeling/mod_tran/2drota.htm
+            # 
+            # print check file
+            #set sep_ra = sep_ra*3600.0
+            #set sep_dec = sep_dec*3600.0
+            #define print_noheader 1
+            #print +"tmp_check_major_minor_ra_dec.txt" '%15.6e %15.6e %15.10e %15.10e %15.10e %15.10e\n' {major minor try_ra try_dec sep_ra sep_dec}
+            #define print_noheader 0
+            # 
+            # convert ra dec to x y
+            #!echo sky2xy ../$(map_mask_fits_image) $(try_ra) $(try_dec) 
+            #!sky2xy -n 10 ../$(map_mask_fits_image) $(try_ra) $(try_dec) 
+            #if(is_file("tmp.txt")) {!rm "tmp.txt"}
+            #!sky2xy -n 10 ../$(map_mask_fits_image) $(try_ra) $(try_dec) | grep -v off > "tmp.txt"
+            #if(is_vector(px)) {unset try_px}
+            #if(is_vector(py)) {unset try_py}
+            #verbose 0 data "tmp.txt" read {try_px 5 try_py 6}
+            if(is_vector(try_ra) && is_vector(try_dec)) {
+                # 
+                if(1) {
+                    # 
+                    # check not too close to any existing galaxy
+                    if(is_vector(cat_ra) && is_vector(cat_dec)) {
+                        set check_ra = cat_ra
+                        set check_dec = cat_dec
+                    } else {
+                        declare check_ra 0.f
+                        declare check_dec 0.f
+                    }
+                    if($i>0) {
+                        set check_ra = check_ra concat gal_ra
+                        set check_dec = check_dec concat gal_dec
+                    }
+                    if(dimen(check_ra)>0 && dimen(check_dec)>0) {
+                        set check_sep = sqrt(((try_ra-check_ra)*cos(map_dec/180.0*pi))**2 + (try_dec-check_dec)**2)
+                        sort {check_sep}
+                    } else {
+                        set check_sep = 360.0
+                    }
+                    if(check_sep[0] >= gal_min_sep/3600.0) {
+                        set ra = try_ra
+                        set dec = try_dec
+                    }
+                }
+            }
+            verbose 1
+        }
+        set gal_id[$i] = float($i+1)
+        set gal_ra[$i] = ra
+        set gal_dec[$i] = dec
+        # 
+        # print progress
+        print_progress $i $(dimen(SimGal_file_list)-1)
+        # 
+        #break
+        #if($i>500) {break}
+        # 
+        # next loop
+        define i $($i+1)
+    }
+    # 
+    chdir "../"
+    # 
+    # Create output dir
+    #!mkdir "result_simu_maps" 2>/dev/null
+    # 
+    # Change dir to output dir
+    #chdir "result_simu_maps"
+    # 
+    # Print to "result_simu_galaxies_radec.txt"
+    print "result_simu_galaxies_radec.txt" '%12.0f %15.10f %15.10f\n' {gal_id gal_ra gal_dec}
+    define print_noheader 1
+    print "result_simu_galaxies_radec.ds9.reg" 'global color=yellow\n' {}
+    print +"result_simu_galaxies_radec.ds9.reg" 'fk5\n' {}
+    print +"result_simu_galaxies_radec.ds9.reg" 'circle(%0.10f,%0.10f,0.70\") \# text={%.0f}\n' {gal_ra gal_dec gal_id}
+    define print_noheader 0
+    echo "Output to \"result_simu_galaxies_radec.txt\" and \"result_simu_galaxies_radec.ds9.reg\"!"
+
+
+
+
+generate_Galaxy_Fluxes 00
+    # 
+    # 
+    macro read a_dzliu_code_Make_z_grid.sm
+    make_z_grid
+    # 
+    macro read a_dzliu_code_Make_Mstar_grid.sm
+    make_Mstar_grid
+    # 
+    load astroSfig.sm
+    # 
+    macro read a_dzliu_code_Plot_SMF_dzliu_model.sm
+    # 
+    # Load Simu Galaxy List
+    data "result_simu_galaxies_list.txt"
+    read {SimGal_file_list 1.s}
+    # 
+    # Load Simu Galaxy RADec
+    data "result_simu_galaxies_radec.txt"
+    read {gal_id 1.f gal_ra 2.f gal_dec 3.f}
+    # 
+    # Initialize galaxy ra dec wave flux array, and read mask image
+    set map_bands = { 24 100 160 250 350 450 500 850 1100 1200 1250 1300 10cm  20cm } # str
+    set map_waves = { 24 100 160 250 350 450 500 850 1100 1200 1250 1300 1.5e5 3e5  } # um
+    do wi = 0,dimen(map_bands)-1 { declare gal_f$(map_bands[$wi]) $(dimen(SimGal_file_list)).f }
+    # 
+    # Change dir to input dir
+    chdir "result_simu_galaxies"
+    # 
+    # Loop each galaxy
+    define i 0
+    while { $i <= dimen(SimGal_file_list)-1 } {
+        # 
+        # Read galaxy SED, z, Mstar, SFR, etc.
+        !echo $(SimGal_file_list[$i]) | perl -p -e 's%(.*)/[^/].*.dat%\1/%g' > "tmp.txt"
+        verbose 0 data "tmp.txt" read {gal_in_dir 1.s}
+        set gal_in_SED = '\"'+gal_in_dir+'SED.dat\"'
+        data $(gal_in_SED) read {w 1.f f 2.f} # w is in log10 and in unit of um, flux is in also in log10 and in unit of mJy. 
+        verbose 1
+        # 
+        # Spline source flux at desired wavelength (do spline in log10 space)
+        set ww = lg(map_waves)
+        smooth f sf 13
+        spline w sf ww ff
+        set ff = (ff<-99) ? -99 : ff
+        set ff = 10**ff
+        do wi = 0,dimen(map_bands)-1 { set gal_f$(map_bands[$wi])[$i] = ff[$wi] }
+        # 
+        # print progress
+        print_progress $i $(dimen(SimGal_file_list)-1)
+        # 
+        #break
+        #if($i>100) {break}
+        # 
+        # next loop
+        define i $($i+1)
+    }
+    # 
+    chdir "../"
+    # 
+    # Create output dir
+    #!mkdir "result_simu_maps" 2>/dev/null
+    # 
+    # Change dir to output dir
+    #chdir "result_simu_maps"
+    # 
+    # Print to "result_simu_galaxies_flux_at_"$(map_w)"_um.txt"
+    do wi = 0,dimen(map_bands)-1 { 
+        print "result_simu_galaxies_flux_at_"$(map_bands[$wi])".txt" '%15.0f %15.10f %15.10f %20.10e\n' <gal_id gal_ra gal_dec gal_f$(map_bands[$wi])>
+        echo "Output to \"result_simu_galaxies_flux_at_"$(map_bands[$wi])".txt\"!"
+    }
+
+
+
+
+print_progress 02
+    if($?2) {
+        set loop_progress_count = 100
+        set loop_progress_step = int(float($2)/loop_progress_count)
+        set loop_progress = float($1)/($2)*100.0
+        if(0==(($1)%loop_progress_step)) {
+            !echo -n $(sprintf('%0.1f',loop_progress))"% ''"
+        }
+        if(($1)==($2)) {
+            !echo "100%!"
+        }
+    }
+
+
+
+
+print_Galaxy_z_Mstar_SFRs 00
+    # 
+    # 
+    # Load Simu Galaxy List
+    data "result_simu_galaxies_list.txt"
+    read {SimGal_file_list 1.s}
+    # 
+    # Load Simu Galaxy RADec
+    data "result_simu_galaxies_radec.txt"
+    read {gal_id 1.f gal_ra 2.f gal_dec 3.f}
+    # 
+    # Initialize output vector arrays
+    foreach var { z zLo zHi lgMstar lgSFR lgLIR lgsSFR Umean Age EBV qIR } { declare gal_$var $(dimen(SimGal_file_list)).f }
+    foreach var { Type_SED } { declare gal_$var $(dimen(SimGal_file_list)).s }
+    # 
+    # Change dir to input dir
+    chdir "result_simu_galaxies"
+    # 
+    # Loop each galaxy
+    define i 0
+    while { $i <= dimen(SimGal_file_list)-1 } {
+        # 
+        # Read galaxy SED, z, Mstar, SFR, etc.
+        !echo $(SimGal_file_list[$i]) | perl -p -e 's%(.*)/[^/].*.dat%\1/%g' > "tmp.txt"
+        verbose 0 data "tmp.txt" read {gal_in_dir 1.s}
+        set gal_in_SED = '\"'+gal_in_dir+'SED.dat\"'
+        set gal_in_z_Mstar_SFR = '\"'+gal_in_dir+'z_Mstar_SFR.dat\"'
+        data $(gal_in_z_Mstar_SFR) read {z 1.f zLo 2.f zHi 3.f lgMstar 4.f lgSFR 5.f lgLIR 6.f lgsSFR 7.f Umean 8.f Age 9.f EBV 10.f qIR 11.f Type_SED 12.s}
+        verbose 1
+        # 
+        # Store into output vector array
+        foreach var { z zLo zHi lgMstar lgSFR lgLIR lgsSFR Umean Age EBV qIR Type_SED } { 
+            set gal_$var[$i] = $var
+        }
+        # 
+        # print progress
+        print_progress $i $(dimen(SimGal_file_list)-1)
+        # 
+        #break
+        #if($i>100) {break}
+        # 
+        # next loop
+        define i $($i+1)
+    }
+    # 
+    chdir "../"
+    # 
+    # Print to "result_simu_galaxies_z_Mstar_SFR.txt"
+    print "result_simu_galaxies_z_Mstar_SFR.txt" \
+          '%15.0f %15.10f %15.10f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12g %12g %12g %12g %12s\n' \
+          {gal_id gal_ra gal_dec gal_z gal_zLo gal_zHi gal_lgMstar gal_lgSFR gal_lgLIR gal_lgsSFR gal_Umean gal_Age gal_EBV gal_qIR gal_Type_SED}
+    echo "Output to \"result_simu_galaxies_z_Mstar_SFR.txt\"!"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

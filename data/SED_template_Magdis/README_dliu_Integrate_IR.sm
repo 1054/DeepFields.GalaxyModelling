@@ -1,0 +1,286 @@
+gogo
+    # 
+    #    macro read README_dliu_Integrate_IR.sm gogo
+    # 
+    goU101
+    goU4
+
+
+
+goU101
+    # 
+    #    macro read README_dliu_Integrate_IR.sm gogo
+    # 
+    # integrate total IR from SED library
+    goReadSEDLIB_Magdis2012 sed_z101_U101_radio.txt
+    # plot wave or freq ?
+    define plotFreq 1
+    # plot
+    device x11
+    if($plotFreq==0) {
+        limits (lg(w)) (lg(f))
+        erase expand 1.5 lweight 2.0 box xtcolours
+        xlabel wave [um]
+        ylabel flux density [mJy]
+    } else {
+        limits (lg(2.99792458e5/w)) (lg(f))
+        erase expand 1.5 lweight 2.0 box xtcolours
+        xlabel freq [GHz]
+        ylabel flux density [mJy]
+    }
+    if($plotFreq==0) {
+        ptype 4 1 angle 45 lweight 1.0 expand 1.0
+        points (lg(w)) (lg(f))
+        ctype red
+        ptype 4 1 angle 30 lweight 1.0 expand 0.5
+        points (lg(w_IR)) (lg(f_IR))
+        ctype blue
+        ptype 4 1 angle 00 lweight 1.0 expand 0.5
+        points (lg(2.99792458e5/u_IR)) (lg(p_IR))
+        ctype default
+    } else {
+        ptype 4 1 angle 45 lweight 1.0 expand 1.0
+        points (lg(2.99792458e5/w)) (lg(f))
+        ctype red
+        ptype 4 1 angle 30 lweight 1.0 expand 0.5
+        points (lg(2.99792458e5/w_IR)) (lg(f_IR))
+        ctype blue
+        ptype 4 1 angle 00 lweight 1.0 expand 0.5
+        points (lg(u_IR)) (lg(p_IR)-1.0)
+        ### points (lg(u_IR)) (lg(p_IR)*0.5-4.5)
+        ### points (lg(freqLIB_IR)) (lg(fluxLIB_IR*freqLIB_IR)*0.25-5.5)
+        ctype default
+    }
+    # show the integrated value
+    echo Integrated L_IR = $(sum(p_IR*1.0)) mJy GHz
+    # then integrate by d method
+    define Lbol $(sum(f_IR*2.99792458e5/w_IR)*.01/lg(exp(1)))
+    echo Equationed L_IR = $($Lbol) mJy GHz
+    # 
+    set L3_IR = sum(f_IR*2.99792458e5/w_IR*(10**0.01-(1.0/10**0.01))/2.0)
+    echo Test       L_IR = $(L3_IR) mJy GHz
+
+
+
+goU1
+    # 
+    #    macro read README_dliu_Integrate_IR.sm gogo
+    # 
+    # integrate total IR from SED library
+    goReadSEDLIB_Magdis2012 sed_z1_U1_radio.txt
+    # plot
+    if($plotFreq==0) {
+        ptype 4 1 angle 45 lweight 1.0 expand 1.0
+        points (lg(w)) (lg(f))
+        ctype red
+        ptype 4 1 angle 30 lweight 1.0 expand 0.5
+        points (lg(w_IR)) (lg(f_IR))
+        ctype green
+        ptype 4 1 angle 00 lweight 1.0 expand 0.5
+        points (lg(2.99792458e5/u_IR)) (lg(p_IR))
+        ctype default
+    } else {
+        ptype 4 1 angle 45 lweight 1.0 expand 1.0
+        points (lg(2.99792458e5/w)) (lg(f))
+        ctype red
+        ptype 4 1 angle 30 lweight 1.0 expand 0.5
+        points (lg(2.99792458e5/w_IR)) (lg(f_IR))
+        ctype green
+        ptype 4 1 angle 00 lweight 1.0 expand 0.5
+        points (lg(u_IR)) (lg(p_IR)-1.0)
+        ### points (lg(u_IR)) (lg(p_IR)*0.5-4.5)
+        ### points (lg(freqLIB_IR)) (lg(fluxLIB_IR*freqLIB_IR)*0.25-5.5)
+        ctype default
+    }
+    # show the integrated value
+    echo Integrated L_IR = $(sum(p_IR*1.0)) mJy GHz
+    # then integrate by d method
+    define Lbol $(sum(f_IR*2.99792458e5/w_IR)*.01/lg(exp(1)))
+    echo Equationed L_IR = $($Lbol) mJy GHz
+    # 
+    set L3_IR = sum(f_IR*2.99792458e5/w_IR*(10**0.01-(1.0/10**0.01))/2.0)
+    echo Test       L_IR = $(L3_IR) mJy GHz
+
+
+
+goU4
+    # 
+    #    macro read README_dliu_Integrate_IR.sm gogo
+    # 
+    # integrate total IR from SED library
+    goReadSEDLIB_Magdis2012 sed_z4_U4_radio.txt
+    # plot
+    if($plotFreq==0) {
+        ptype 4 1 angle 45 lweight 1.0 expand 1.0
+        points (lg(w)) (lg(f))
+        ctype red
+        ptype 4 1 angle 30 lweight 1.0 expand 0.5
+        points (lg(w_IR)) (lg(f_IR))
+        ctype green
+        ptype 4 1 angle 00 lweight 1.0 expand 0.5
+        points (lg(2.99792458e5/u_IR)) (lg(p_IR))
+        ctype default
+    } else {
+        ptype 4 1 angle 45 lweight 1.0 expand 1.0
+        points (lg(2.99792458e5/w)) (lg(f))
+        ctype red
+        ptype 4 1 angle 30 lweight 1.0 expand 0.5
+        points (lg(2.99792458e5/w_IR)) (lg(f_IR))
+        ctype green
+        ptype 4 1 angle 00 lweight 1.0 expand 0.5
+        points (lg(u_IR)) (lg(p_IR)-1.0)
+        ### points (lg(u_IR)) (lg(p_IR)*0.5-4.5)
+        ### points (lg(freqLIB_IR)) (lg(fluxLIB_IR*freqLIB_IR)*0.25-5.5)
+        ctype default
+    }
+    # show the integrated value
+    echo Integrated L_IR = $(sum(p_IR*1.0)) mJy GHz
+    # then integrate by d method
+    define Lbol $(sum(f_IR*2.99792458e5/w_IR)*.01/lg(exp(1)))
+    echo Equationed L_IR = $($Lbol) mJy GHz
+    # 
+    set L3_IR = sum(f_IR*2.99792458e5/w_IR*(10**0.01-(1.0/10**0.01))/2.0)
+    echo Test       L_IR = $(L3_IR) mJy GHz
+    # 
+    echo Test       L_IR = $($Lbol * 4*pi * 9.52140e31 / 3.839e33 * 6735.56**2 * 0.1205581 * 2.99792458e5) Lsun
+    # 
+    echo 1 * 4 * pi * dL**2 mJy GHz = (1/40.31970) * 4 * pi * dL**2 Lsun
+
+
+
+goReadSEDLIB_Magdis2012 01
+    # 
+    # 
+    # 
+    data $1 read {waveLIB 1 fluxLIB 2}
+    set fluxLIB = fluxLIB/2.99792458e5*waveLIB  # from nu_f_nu to f_nu # mJy
+    set freqLIB = 2.99792458e5/waveLIB  # GHz
+    # interpolate spline
+    set w = -1,6,.01 set w = 10**w
+    set w_sp1 = (lg(waveLIB)) set f_sp1 = fluxLIB set w_sp2 = (lg(w))
+    spline w_sp1 f_sp1 w_sp2 f_sp2
+    smooth f_sp2 f 13
+    set coo = (w>=1.0 && w<=1e5)
+    set f = f if(coo)
+    set w = w if(coo)
+    # select IR range
+    set w_IR = w if(w>8 && w<1000)
+    set f_IR = f if(w>8 && w<1000)
+    set waveLIB_IR = waveLIB if(waveLIB>8 && waveLIB<1000)
+    set fluxLIB_IR = fluxLIB if(waveLIB>8 && waveLIB<1000)
+    set freqLIB_IR = 2.99792458e5/waveLIB_IR
+    # make freq range
+    set u_IR = (2.99792458e5/1000.0),(2.99792458e5/8.0),1.0  # GHz
+    ### set freq_IR = 2.99792458e5/w_IR  # GHz
+    ### set fint_IR = f_IR*freq_IR  # mJy GHz
+    ### set fint_IR = reverse(fint_IR)
+    ### set freq_IR = reverse(freq_IR)
+    ### spline freq_IR fint_IR u_IR p_IR
+    set w_sp1 = reverse(lg(freqLIB)) set f_sp1 = reverse(fluxLIB) set w_sp2 = (lg(u_IR))
+    spline w_sp1 f_sp1 w_sp2 f_sp2
+    set p_IR = f_sp2 # the flux with freq interval of 1.0 GHz
+    # now the splined uIR pIR has a freq interval of 1.0 GHz
+    # 
+
+
+
+go
+    # 
+    #    macro read README_dliu_Integrate_IR.sm go
+    # 
+    # integrate total IR from SED library
+    data sed_z101_U101_radio.txt read {w 1 f 2}
+    # plot
+    device x11
+    limits (lg(w)) (lg(f))
+    erase expand 1.5 lweight 2.0 box xtcolours
+    if(1){xlabel wave [um]}else{} if(1){ylabel flux density [mJy]}else{}
+    ptype 4 1 angle 45 lweight 1.0 expand 1.0
+    points (lg(w)) (lg(f))
+    # select IR range
+    set wIR = w if(w>8 && w<1000)
+    set fIR = f if(w>8 && w<1000)
+    ctype red
+    ptype 4 1 angle 30 lweight 1.0 expand 0.5
+    points (lg(wIR)) (lg(fIR))
+    # make freq range
+    set uIR = (2.99792458e5/1000.0),(2.99792458e5/8.0),5.0  # GHz
+    set freqIR = 2.99792458e5/wIR  # GHz
+    set fluxIR = fIR*freqIR  # mJy GHz
+    set fluxIR = reverse(fluxIR)
+    set freqIR = reverse(freqIR)
+    spline freqIR fluxIR uIR pIR 
+    # now the splined uIR pIR has a freq interval of 5.0 GHz
+    ctype green
+    ptype 4 1 angle 00 lweight 1.0 expand 0.5
+    points (lg(2.99792458e5/uIR)) (lg(pIR/uIR))
+    ctype default
+    # show the integrated value
+    echo Integrated L_IR = $(sum(pIR*5.0*1e-6)) Jy Hz
+    # then integrate by d method
+    define Lbol $(sum(fIR*2.99792458e5/wIR)*.01/lg(exp(1)))
+    echo Equationed L_IR = $($Lbol) ???
+
+
+
+
+testLogInterval
+    # 
+    #    macro read README_dliu_Integrate_IR.sm testLogInterval
+    # 
+    # 
+    set waveTEST = (lg(8)),(lg(1000)),0.2 set waveTEST = 10**waveTEST
+    set freqTEST = 2.99792458e5/waveTEST
+    set waveTEST_log = lg(waveTEST)
+    set freqTEST_log = lg(freqTEST)
+    print {waveTEST_log freqTEST_log}
+    device x11
+    limits freqTEST_log 0 10
+    erase expand 1.5 lweight 2.0 box
+    ctype red
+    do i=1,6 { points freqTEST_log (freqTEST_log*0+$i) }
+    ctype default
+
+
+
+testLogIntegrate
+    # 
+    #    macro read README_dliu_Integrate_IR.sm testLogIntegrate
+    # 
+    # 
+    define itv 0.021
+    set x_log = -3,1,$itv
+    set x = 10**x_log
+    set y = x**2*1.0
+    ## print {x_log x y}
+    echo Integral should be 50.000
+    echo $(sum(y*x*(10**$itv-1.0/(10**$itv))/2.0))
+    echo $(sum(y*x)*$itv/lg(exp(1)))
+
+
+
+testU4
+    # 
+    #    macro read README_dliu_Integrate_IR.sm testU4
+    # 
+    # 
+    define xname 4
+    set xxWS = -1,6,.01 #<TODO>#<TEST># original is .01
+    data sed_z4_U4_radio.txt read {ws 1 fsfr 2} set fsfr = fsfr*ws set ws=lg(ws)
+    spline ws fsfr xxWS xfsfr
+    smooth xfsfr fsfr$xname 13
+    set fsfr$xname = fsfr$xname>0 ? fsfr$xname : 0
+    set fff0 = fsfr$xname/10**xxWS set cooX = xxWS>lg(8) && xxWS<3 set fff0 = fff0 if(cooX) define Lbol $(sum(fff0)*.01/lg(exp(1)))
+    set fsfr$xname = fsfr$xname/$Lbol if(xxWS>-1 && xxWS<5.6)
+    set xxwx = xxWS if(xxWS>-1 && xxWS<5.6)
+    set xxfx = fsfr$xname/2.99792458e5
+    print {xxwx xxfx}
+    points xxwx (lg(xxfx))
+
+
+
+
+
+
+
+

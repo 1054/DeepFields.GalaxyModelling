@@ -1,0 +1,12 @@
+The Herschel flux measurements (Daddi et al in preparation)
+are based on SED fitting over a highly complete sample of prior position 
+including all 24$\mu$m sources down to 20$\mu$Jy and/or IRAC detections with a coincident radio 20cm signal
+above 13$\mu$Jy (3$\sigma$). We used the galfit code that fully accounts for deblending uncertainties.
+In order to measure reliable Herschel photometry in the SPIRE bands, where PSF range in the 20--35$''$, 
+we proceded by steps. We first used only the fluxes up to 160$\mu$m for all sources constraining their
+possible range of SPIRE 250$\mu$m fluxes, identifying the ones too weak to provide any siginficant flux
+at 250um and subtracting them from the 250um image, where only the remaining sources were fit. Subsequently we proceeded in the same way for the 350um image, using the info up to 250um. 
+This procedure strongly reduce the number density of priors that are fitted in the SPIRE maps, 
+and allow reliable flux measurements in many cases with a sensitivity similar to the instrumental noise.
+Detailed montecarlo simulations were used to validate the procedure and reliably assign error 
+bars to all our flux measurements. 

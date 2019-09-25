@@ -1,0 +1,119 @@
+integrate_CSFRD
+    # 
+    # Usage:
+    #    echo "macro read integrate_CSFRD.sm integrate_CSFRD" | sm
+    # 
+    load astroSfig.sm
+    device postencap "Plot_integrate_CSFRD.eps"
+    define TeX_strings 1
+    xtcolours
+    add_ctype gray 127 127 127
+    erase expand 1.35 lweight 3.0 
+    # ticksize -1 0 0 0 # wider range
+    # limits -1 2 -10 0 # wider range
+    
+    # -- WE PLOT X TOP AXIS t_age
+    ticksize -1 10 0 0
+    limits $(lg(calc_cosmic_age(0.0))) $(lg(calc_cosmic_age(8.5))) -2.5 0.4
+    ctype default
+    location 6000 30500 6500 22000
+    box 4 4 3 4
+    set cosmic_age = calc_cosmic_age(0.0)
+    do i=0,12 { # plot x top axis by hand
+        rel      $(lg(cosmic_age-$i)) $($fy2-0.03*($fy2-$fy1))
+        draw     $(lg(cosmic_age-$i)) $($fy2-0.00*($fy2-$fy1))
+        relocate $(lg(cosmic_age-$i)) $($fy2+0.05*($fy2-$fy1))
+        expand 1.35 lweight 3.5 putlabel 5 $i
+    }
+    do i=1,1 { # plot x top label by hand
+        relocate $(0.5*($fx1+$fx2)) $($fy2+0.13*($fy2-$fy1))
+        expand 1.35 lweight 3.5 putlabel 5 "lookback time [Gyr]"
+    }
+    
+    # -- WE PLOT X BOTTOM AXIS (1+z)
+    ticksize -1 1 0 0
+    limits $(lg(0.0+1)) $(lg(8.5+1)) -2.5 0.4
+    ctype default
+    location 6000 30500 6500 22000
+    box 3 2 3 0
+    do i=0,9 { # plot x bottom axis by hand
+        rel      $(lg($i+1)) $($fy1+0.03*($fy2-$fy1))
+        draw     $(lg($i+1)) $($fy1+0.00*($fy2-$fy1))
+        relocate $(lg($i+1)) $($fy1-0.05*($fy2-$fy1))
+        expand 1.35 lweight 3.5 putlabel 5 $i
+    }
+    do i=1,1 { # plot x bottom label by hand
+        relocate $(0.5*($fx1+$fx2)) $($fy1-0.15*($fy2-$fy1))
+        expand 2.15 lweight 3.5 putlabel 5 "z"
+    }
+    expand 1.9
+    ylabel "log \Psi \ [M_{\odot} yr^{-1} Mpc^{-3}]"
+    # ylabel Cosmic SFR Density
+    
+    
+    # overplot empirical CSFRD functions -- Madau & Dickinson 2014
+    set foo_z = 0.1,8.0,0.1
+    set foo_SFR = calc_MadauDickinson2014_CSFRD(foo_z)
+    set foo_SFR = foo_SFR/1.64 # convert SalpeterIMF to ChabrierIMF
+    ctype orangered ltype 0 lweight 6.5 connect (lg(foo_z+1)) (lg(foo_SFR))
+    
+    
+    
+    
+    
+    # do integration over each cosmic time
+    set foo_Mstar = foo_SFR*0.0-99
+    set foo_Mgas = foo_SFR*0.0-99
+    do i=dimen(foo_z)-1,0,-1 {
+        set z1 = foo_z[$i-1]
+        set z2 = foo_z[$i]
+        set t1 = calc_cosmic_age(z1)
+        set t2 = calc_cosmic_age(z2)
+        set SFR1 = foo_SFR[$i-1]
+        set SFR2 = foo_SFR[$i]
+        set foo_Mstar[$i] = (10**SFR1+10**SFR2)/2.0 * (t1-t2) # 1E9 Mstar because t1 t2 are in unit of Gyr
+        set foo_Mstar[$i] = foo_Mstar[$i] * 0.5 # TODO 0.5 is mass loading factor
+        echo $(foo_Mstar[$i])
+        
+        # Inferring gas mass using Kennicutt-Schmidt law
+        #set foo_Mgas[$i] = ((10**SFR1+10**SFR2)/2.0)**(1/1.4) * 10**(8.8) / 1E9 # 1E9 Mstar # / (foo_Mstar[$i]*1E9)
+        
+        # Inferrring gas mass using gas fraction evolution
+        #set coo_Mstar = 8.0, 13.0, 1.0
+        #set coo_Delta_MS = 0.0
+        #set coo_delta_Gas = 10**(0.70 * coo_Delta_MS - 0.37 * (coo_Mstar-10.0) - 0.12*(t1+t2)/2.0 + 0.70)
+        #print {coo_Mstar coo_delta_Gas}
+        set coo_Mstar = 11.0
+        set coo_Delta_MS = 0.0
+        set coo_delta_Gas = 10**(0.70 * coo_Delta_MS - 0.37 * (coo_Mstar-10.0) - 0.12*(t1+t2)/2.0 + 0.70)
+        set foo_Mgas[$i] = coo_delta_Gas * foo_Mstar[$i] # 1E9 Mstar
+        
+    }
+    ctype royalblue ltype 2 lweight 10.5 connect (lg(foo_z+1)) (lg(foo_Mstar))
+    ctype seagreen ltype 3 lweight 10.5 ltype expand 1.5 connect (lg(foo_z+1)) (lg(foo_Mgas))
+    print {foo_z foo_Mgas foo_Mstar foo_SFR}
+    
+    rel $(lg(1.3)) -0.22 ctype royalblue lweight 5 expand 1.48 puts "Stars"
+    rel $(lg(1.3)) -0.96 ctype seagreen lweight 5 expand 1.48 puts "Cold Gas"
+    rel $(lg(1.3)) -1.90 ctype orangered lweight 5 expand 1.48 puts "SFRs"
+    
+    
+    
+    
+    # overplot gas evolution curve
+    
+    
+    
+    
+    
+    device nodevice
+    
+    !ps2pdf -dEPSCrop Plot_integrate_CSFRD.eps Plot_integrate_CSFRD.pdf
+    !pdfcrop -margin 5 Plot_integrate_CSFRD.pdf Plot_integrate_CSFRD.pdf
+    !open Plot_integrate_CSFRD.pdf
+    
+    
+    
+    
+    
+    
