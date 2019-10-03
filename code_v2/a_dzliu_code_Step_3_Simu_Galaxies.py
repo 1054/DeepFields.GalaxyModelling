@@ -184,6 +184,8 @@ def generate_galaxy_numbers(area_arcmin2):
     output_dict['SB'] = []
     output_dict['Maj_kpc'] = []
     output_dict['Min_kpc'] = []
+    output_dict['Maj_arcsec'] = []
+    output_dict['Min_arcsec'] = []
     output_dict['PA'] = []
     # 
     # loop redshift bins
