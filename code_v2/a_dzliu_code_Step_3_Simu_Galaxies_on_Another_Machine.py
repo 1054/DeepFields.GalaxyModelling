@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # 
 # #<TODO><20191004># assuming half optical sizes for radio / millimetre #<TODO><20191004>#
 # 
