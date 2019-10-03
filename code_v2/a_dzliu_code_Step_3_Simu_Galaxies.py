@@ -23,7 +23,7 @@ global script_dir
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(script_dir, 'python', 'lib', 'crab', 'crabgalaxy'))
 sys.path.append(os.path.join(script_dir, 'python', 'lib', 'crab', 'crabtable'))
-sys.path.append('/Users/dzliu/Cloud/GitLab/AlmaCosmos/Plot/Common_Python_Code') #<TODO># replace by a3g
+sys.path.append(os.getenv('HOME')+'/Cloud/GitLab/AlmaCosmos/Plot/Common_Python_Code') #<TODO># replace by a3g
 from CrabGalaxy import CrabGalaxy, CrabGalaxyMorphology
 from CrabTable import CrabTableReadInfo
 from calc_galaxy_stellar_mass_function import (calc_SMF_Davidzon2017, calc_SMF_Ilbert2013, calc_SMF_Peng2010, calc_SMF_Wright2018_single_component, calc_SMF_Wright2018_double_component, calc_SMF_dzliu2018)
