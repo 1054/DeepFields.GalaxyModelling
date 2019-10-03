@@ -8,18 +8,20 @@
 import os
 import sys
 import re
+#import six
 #import math
 import numpy as np
 import scipy
 import astropy
 from astropy.table import Table
-from scipy.special import gamma, gammainc, gammaincinv
-from scipy.interpolate import interp1d
+from scipy.special import gamma, gammainc, gammaincinv, binom
+from scipy.interpolate import interp1d, interp2d
+#from scipy.signal import resample
 #from datetime import datetime
 #from astropy.modeling.models import Gaussian2D
-#from astropy.convolution import Gaussian2DKernel
-#from astropy.convolution import convolve, convolve_fft
-#from astropy.io import fits
+from astropy.convolution import Gaussian2DKernel
+from astropy.convolution import convolve, convolve_fft
+from astropy.io import fits
 #from astropy.wcs import WCS
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -39,20 +41,21 @@ def func_interp1d_loglog(x, y, kind = 'linear', normalization = 1.0):
 
 class CrabGalaxySED(object):
     # 
-    def __init__(self, w = None, f = None, f_err = None, band_name = None):
+    def __init__(self, w = None, f = None, f_err = None, f_unit = None, band_name = None):
         self.w = []
         self.f = []
         self.f_err = []
+        self.f_unit = []
         self.band_name = []
         self.allowed_templates = ['magdis2012', 'dzliu', ]
         self.template = None # SED template func
         self.template_properties = {} # 'z', 'dL', etc.
         if not (w is None and f is None):
-            self.set_data(w = w, f = f, f_err = f_err, band_name = band_name)
+            self.set_data(w = w, f = f, f_err = f_err, f_unit = f_unit, band_name = band_name)
         #if not (template_name == ''):
         #    self.set_SED_template(template_name)
     # 
-    def set_data(self, w = None, f = None, f_err = None, band_name = None):
+    def set_data(self, w = None, f = None, f_err = None, f_unit = None, band_name = None):
         if (w is None and f is not None) or (w is not None and f is None):
             raise ValueError('Error input of w and f! Both must be given!')
         else:
@@ -70,6 +73,13 @@ class CrabGalaxySED(object):
                         raise ValueError('Error input of f_err! Should be scalar!')
                     else:
                         self.f_err.append(f_err)
+                if f_unit is None:
+                    self.f_unit.append('Jy')
+                else:
+                    if not np.isscalar(f_unit):
+                        raise ValueError('Error input of f_unit! Should be scalar!')
+                    else:
+                        self.f_unit.append(f_unit)
                 if band_name is None:
                     self.band_name.append('N/A')
                 else:
@@ -91,6 +101,13 @@ class CrabGalaxySED(object):
                             raise ValueError('Error input of f_err! Inconsistent length!')
                         else:
                             self.f_err.extend(np.array(f_err).flatten().tolist())
+                    if f_unit is None:
+                        self.f_unit.extend(np.full(np.array(f).flatten().shape, 'Jy'))
+                    else:
+                        if len(w) != len(f_unit):
+                            raise ValueError('Error input of f_unit! Inconsistent length!')
+                        else:
+                            self.f_unit.extend(np.array(f_unit).flatten().tolist())
                     if band_name is None:
                         self.band_name.extend(np.full(np.array(f).flatten().shape, 'N/A'))
                     else:
@@ -295,18 +312,36 @@ class CrabGalaxyMorphology(object):
             #bn = gammaincinv(2.0*self.index, 0.5) # Returns bn such that gammainc(2n, bn) = 0.5, which represents half-(total-)light radius R_eff .
             bn = gammaincinv(2.0*self.index, 0.5*gamma(2*self.index)) # Returns bn such that gammainc(2n, bn) = Gamma(2n), which represents half-(total-)light radius R_eff .
             #print(np.exp(bn)) # exp(bn) is the peak value. 
-            #print('0.5*gamma(2*self.index)', 0.5*gamma(2*self.index))
-            #I_eff = np.exp( - bn * ( (1.0)**(1.0 / self.index) - 1.0 ) )
-            #print('I_eff', I_eff) # always 1.0
-            I_eff = 1.0
-            I_int = I_eff * ((self.major)**2+(self.minor)**2) * 2 * np.pi * self.index * np.exp(bn) / (bn**(2*self.index)) * gamma(2.0*self.index) # http://ned.ipac.caltech.edu/level5/March05/Graham/Graham2.html
-            print('I_int', I_int) 
-            raise NotImplementedError('TODO: normalize sersic profile')
-            #print(2.0*gammainc(2.0*self.index, bn))
+            # 
+            # Area of Sersic2D: \int 2 pi R e^(-bn ((R/Re)^(1/n)-1) ) dR 
+            # let x = bn (R/Re)^(1/n)
+            # so R = (x^n / bn^n) * Re, and dR = n x^(n-1) Re / bn^n
+            # so Area = \int 2 pi (x^n / bn^n) * Re * e^(-x) * e^(bn) * (n x^(n-1) Re / bn^n) dx
+            #         = 2 pi (Re^2 / bn^2n) * e^(bn) * n * \int x^(2n-1) e^(-x) dx
+            #         = 2 pi (Re^2 / bn^2n) * e^(bn) * n * \Gamma(2n)
+            # 
+            # Value at R_eff: 
+            a = self.major
+            b = self.minor
+            #perimeter = np.pi * ( 3*(a+b) - np.sqrt((3*a+b)*(a+3*b)) )
+            b_a_ratio = b/a # so perimeter = np.pi * ((3*(1+b_a_ratio)) - np.sqrt((3+b_a_ratio)*(1+3*b_a_ratio))) * a
+            #perimeter_factor = ((3*(1+b_a_ratio)) - np.sqrt((3+b_a_ratio)*(1+3*b_a_ratio)))
+            #perimeter = # a better way -- see ellipse perimeter -- https://www.mathsisfun.com/geometry/ellipse-perimeter.html
+            # 
+            #h = (a-b)**2/(a+b)**2
+            #perimeter_factor = (1+b_a_ratio) * (1 + binom(0.5,1)*h + binom(0.5,2)*h + binom(0.5,3)*h)
+            #I_int = perimeter_factor * np.pi * (self.major)**2 / (bn**(2*self.index)) * np.exp(bn) * self.index * gamma(2.0*self.index) # http://ned.ipac.caltech.edu/level5/March05/Graham/Graham2.html
+            #print('I_int', I_int)
+            # 
+            #raise NotImplementedError('TODO: normalize sersic profile')
+            # 
             # output array is normalized to have a total area of 1.0 / pixscale**2
-            return np.exp( - bn * ( np.sqrt( (ddx / (self.major))**2 + \
-                                             (ddy / (self.minor))**2 )**(1.0 / self.index) - 1.0 \
-                                  ) )
+            output_array = np.exp( - bn * ( np.sqrt( (ddx / (self.major))**2 + \
+                                                     (ddy / (self.minor))**2 )**(1.0 / self.index) - 1.0 \
+                                          ) )
+            #print('sum', np.sum(output_array))
+            output_array = output_array / np.sum(output_array)
+            return output_array
         def __str__(self):
             return 'Shape: %s, major: %s [arcsec], minor: %s [arcsec], PA: %s [degree], Sersic index: %s.'%(\
                         self.name, self.major, self.minor, self.angle, self.index)
@@ -397,14 +432,215 @@ class CrabGalaxyMorphology(object):
             plt.contour(data_2D, colors = 'white', alpha = 0.7, linewidths = 1.2) # levels=np.array([-3.,-2,2,3,4,5])*image_rms, 
             plt.show()
     # 
-    def inject_into_image(self, input_image_data, pixel_scale, pos_x, pos_y, mgrid_x = None, mgrid_y = None):
+    def resample_mgrid(self, input_mgrid_y, input_mgrid_x, oversampling_factor):
+        if len(input_mgrid_y.shape) != 2 or len(input_mgrid_x.shape) != 2:
+            raise ValueError('Error! The input mgrid array of resample_mgrid() is not a 2D mgrid array!')
+        #output_mgrid_y = np.full(np.array(list(input_mgrid_y.shape))*oversampling_factor, 0.0)
+        #output_mgrid_x = np.full(np.array(list(input_mgrid_x.shape))*oversampling_factor, 0.0)
+        # e.g., mgrid[351:354, 401:404]
+        # mgrid_x = [ [401, 402, 403], 
+        #             [401, 402, 403], 
+        #             [401, 402, 403] ]
+        # mgrid_y = [ [351, 351, 351], 
+        #             [352, 352, 352], 
+        #             [353, 353, 353] ]
+        # after resampling by a factor of 2:
+        # mgrid_x = [ [401.0, XXX.X, XXX.X, XXX.X, XXX.X, 403.0], 
+        #             [401.0, XXX.X, XXX.X, XXX.X, XXX.X, 403.0], 
+        #             [401.0, XXX.X, XXX.X, XXX.X, XXX.X, 403.0], 
+        #             [401.0, XXX.X, XXX.X, XXX.X, XXX.X, 403.0], 
+        #             [401.0, XXX.X, XXX.X, XXX.X, XXX.X, 403.0], 
+        #             [401.0, XXX.X, XXX.X, XXX.X, XXX.X, 403.0] ]
+        # mgrid_y = [ [351.0, 351.0, 351.0, 351.0, 351.0, 351.0], 
+        #             [XXX.X, XXX.X, XXX.X, XXX.X, XXX.X, XXX.X], 
+        #             [XXX.X, XXX.X, XXX.X, XXX.X, XXX.X, XXX.X], 
+        #             [XXX.X, XXX.X, XXX.X, XXX.X, XXX.X, XXX.X], 
+        #             [XXX.X, XXX.X, XXX.X, XXX.X, XXX.X, XXX.X], 
+        #             [353.0, 353.0, 353.0, 353.0, 353.0, 353.0] ]
+        # 
+        #size_y, size_x = input_mgrid_x.shape
+        #output_mgrid_x0 = np.interp(np.arange(size_x*oversampling_factor)/float(size_x*oversampling_factor-1)*float(size_x-1), 
+        #                               np.arange(size_x), 
+        #                               input_mgrid_x[0,:])
+        #output_mgrid_x = np.repeat(output_mgrid_x0[np.newaxis,:], size_y*oversampling_factor, axis=0)
+        ## 
+        #output_mgrid_y0 = np.interp(np.arange(size_y*oversampling_factor)/float(size_y*oversampling_factor-1)*float(size_y-1), 
+        #                               np.arange(size_y), 
+        #                               input_mgrid_y[:,0])
+        #output_mgrid_y = np.repeat(output_mgrid_y0[:,np.newaxis], size_x*oversampling_factor, axis=1)
+        # 
+        # ---- NONONO
+        # ---- For pixel coordinates, what we need to do is to resample fractional pixels, so that [1,2,3] --> [1.0, 1.5, 2.0, 2.5, 3.0, 3.5]. 
+        #      Each mgrid coordinate (0-based) is the lower-left corner of each pixel, not the pixel center!
+        # so if we have
+        # e.g., mgrid[351:354, 401:404]
+        # mgrid_x = [ [401, 402, 403], 
+        #             [401, 402, 403], 
+        #             [401, 402, 403] ]
+        # mgrid_y = [ [351, 351, 351], 
+        #             [352, 352, 352], 
+        #             [353, 353, 353] ]
+        # after resampling by a factor of 2:
+        # mgrid_x = [ [401.0, XXX.X, 402.0, XXX.X, 403.0, XXX.X], 
+        #             [401.0, XXX.X, 402.0, XXX.X, 403.0, XXX.X], 
+        #             [401.0, XXX.X, 402.0, XXX.X, 403.0, XXX.X], 
+        #             [401.0, XXX.X, 402.0, XXX.X, 403.0, XXX.X], 
+        #             [401.0, XXX.X, 402.0, XXX.X, 403.0, XXX.X], 
+        #             [401.0, XXX.X, 402.0, XXX.X, 403.0, XXX.X] ]
+        # mgrid_y = [ [351.0, 351.0, 351.0, 351.0, 351.0, 351.0], 
+        #             [XXX.X, XXX.X, XXX.X, XXX.X, XXX.X, XXX.X], 
+        #             [352.0, 352.0, 352.0, 352.0, 352.0, 352.0], 
+        #             [XXX.X, XXX.X, XXX.X, XXX.X, XXX.X, XXX.X], 
+        #             [353.0, 353.0, 353.0, 353.0, 353.0, 353.0], 
+        #             [XXX.X, XXX.X, XXX.X, XXX.X, XXX.X, XXX.X] ]
+        size_y, size_x = input_mgrid_x.shape
+        output_mgrid_y = np.full(np.array(list(input_mgrid_y.shape))*oversampling_factor, 0.0)
+        output_mgrid_x = np.full(np.array(list(input_mgrid_x.shape))*oversampling_factor, 0.0)
+        output_mgrid_x0 = np.interp(np.arange(size_x*oversampling_factor)/float(oversampling_factor), 
+                                       np.arange(size_x+1), 
+                                       np.concatenate([input_mgrid_x[0,:], [input_mgrid_x[0,-1]+1]]) )
+        output_mgrid_x = np.repeat(output_mgrid_x0[np.newaxis,:], size_y*oversampling_factor, axis=0)
+        # 
+        output_mgrid_y0 = np.interp(np.arange(size_y*oversampling_factor)/float(oversampling_factor), 
+                                       np.arange(size_y+1), 
+                                       np.concatenate([input_mgrid_y[:,0], [input_mgrid_y[-1,0]+1]]) )
+        output_mgrid_y = np.repeat(output_mgrid_y0[:,np.newaxis], size_x*oversampling_factor, axis=1)
+        # 
+        return output_mgrid_y, output_mgrid_x
+    # 
+    def inject_into_image(self, input_image_data, pixel_scale = 1.0, 
+                                flux = None, band = None, 
+                                x = None, y = None, 
+                                mgrid_x = None, mgrid_y = None, 
+                                convolving_image = None, 
+                                convolving_beam = None, 
+                                oversampling_factor = None, 
+                                convolving_image_oversampled = None):
         if self.shape is not None:
+            # 
             # user can supply mgrid_x and mgrid_y to speed up
             if mgrid_x is None or mgrid_y is None:
                 image_size_y, image_size_x = input_image_data.shape # N_X, N_Y
                 mgrid_y, mgrid_x = np.mgrid[0:image_size_y, 0:image_size_x]
-            data_2D = self.shape.func((mgrid_x-pos_x) * pixel_scale, (mgrid_y-pos_y) * pixel_scale)
-            return input_image_data + data_2D
+            # 
+            # user can supply a string for 'band' (representing the SED band name), or alternatively a float number for 'flux'
+            if flux is None:
+                if band is not None:
+                    if self.SED.is_valid():
+                        if band in self.SED.band_name:
+                            flux = self.SED.f[self.SED.band_name.index(band)]
+                        else:
+                            raise ValueError('The input band %s was not found in the galaxy SED band names (%s) when calling inject_into_image()!'%(band, ', '.join(self.SED.band_name)))
+                    else:
+                        raise ValueError('The user has input band %s when calling inject_into_image(), but the galaxy has no valid SED!'%(band))
+                else:
+                    raise ValueError('Please input a flux or band when calling inject_into_image()!')
+            # 
+            # check user input x y
+            if x is None or y is None:
+                raise ValueError('Please input source pixel coordinate x and y (0-based) when calling inject_into_image()!') #<TODO># 
+            # 
+            # user can also supply a convolving_image so that we will do convolution
+            if convolving_beam is None and convolving_image is None and convolving_image_oversampled is None:
+                # no need to do convolution
+                #print('[DEBUG] inject_into_image(): no convolution')
+                # 
+                if oversampling_factor is not None:
+                    if oversampling_factor < 0:
+                        print('Warning! inject_into_image(): the oversampling factor is %d! We will simply align the source at %s,%s to the nearest pixel center!'%(oversampling_factor, x, y))
+                        # if the user has given a negative oversampling_factor, then we actually do not oversample but take the nearest pixel
+                        x = np.round(x)
+                        y = np.round(y)
+                # 
+                data_2D = self.shape.func((mgrid_x-x) * pixel_scale, (mgrid_y-y) * pixel_scale)
+            else:
+                # do convolution
+                #print('[DEBUG] inject_into_image(): doing convolution')
+                # 
+                # check user input convolving_image, if it is a scalar, then we take it as the FWHM of the PSF
+                if convolving_image is None:
+                    if convolving_beam is not None:
+                        PSF_FWHM_arcsec = float(convolving_beam)
+                        PSF_FWHM_pixel = PSF_FWHM_arcsec / pixel_scale
+                        PSF_sigma_pixel = PSF_FWHM_pixel / (2.0*np.sqrt(2.0*np.log(2.0)))
+                        convolving_image = Gaussian2DKernel(PSF_sigma_pixel) # default size is 8.0 * sigma
+                # 
+                # check if we need to oversample the source image for fractional pixel or not
+                if self.shape.minor/pixel_scale < 2.0:
+                    # 
+                    # if source size is smaller than 2.0 pixel, we oversample the image
+                    if oversampling_factor is None:
+                        oversampling_factor = int(np.ceil(2.0/(self.shape.minor/pixel_scale)))
+                        # check whether user has input convolving_image_oversampled but not oversampling_factor
+                        if convolving_image_oversampled is not None:
+                            raise ValueError('Error! The user has input convolving_image_oversampled but not oversampling_factor when calling inject_into_image()!')
+                    else:
+                        oversampling_factor = int(oversampling_factor)
+                    #print('[DEBUG] inject_into_image(): oversampling_factor', oversampling_factor)
+                    # 
+                    if oversampling_factor < 0:
+                        print('Warning! inject_into_image(): the oversampling factor is %d! We will simply align the source at %s,%s to the nearest pixel center!'%(oversampling_factor, x, y))
+                        # if the user has given a negative oversampling_factor, then we actually do not oversample but take the nearest pixel
+                        x = np.round(x)
+                        y = np.round(y)
+                        data_2D = self.shape.func((mgrid_x-x) * pixel_scale, (mgrid_y-y) * pixel_scale)
+                        data_2D = convolve(data_2D, convolving_image)
+                    else:
+                        if oversampling_factor > 10:
+                            print('Warning! inject_into_image(): the oversampling factor of %d is large! Convolution will take a lot of time!'%(oversampling_factor))
+                        # 
+                        # user can also supply a convolving_image_oversampled so that we do not need to resample convolving_image
+                        if convolving_image_oversampled is None:
+                            if convolving_beam is not None:
+                                PSF_FWHM_arcsec = float(convolving_beam)
+                                PSF_FWHM_pixel = PSF_FWHM_arcsec / pixel_scale * oversampling_factor
+                                PSF_sigma_pixel = PSF_FWHM_pixel / (2.0*np.sqrt(2.0*np.log(2.0)))
+                                convolving_image_oversampled = Gaussian2DKernel(PSF_sigma_pixel) # default size is 8.0 * sigma
+                                #print('sum(convolving_image)', np.sum(convolving_image.array))
+                                #print('sum(convolving_image_oversampled)', np.sum(convolving_image_oversampled.array))
+                            else:
+                                convolving_image_oversampling_func = interp2d(np.linspace(0, 1, convolving_image.shape[1], endpoint=True), \
+                                                                              np.linspace(0, 1, convolving_image.shape[0], endpoint=True), \
+                                                                              convolving_image )
+                                convolving_image_oversampled = convolving_image_oversampling_func(np.linspace(0, 1, (int(np.ceil(convolving_image.shape[1]*oversampling_factor/2))*2+1), endpoint=True), \
+                                                                                                  np.linspace(0, 1, (int(np.ceil(convolving_image.shape[0]*oversampling_factor/2))*2+1), endpoint=True) )
+                                convolving_image_oversampled = convolving_image_oversampled / np.sum(convolving_image_oversampled) * np.sum(convolving_image.array)
+                                #print('type(convolving_image)', type(convolving_image))
+                                #print('sum(convolving_image)', np.sum(convolving_image.array))
+                                #print('sum(convolving_image_oversampled)', np.sum(convolving_image_oversampled))
+                        # 
+                        # debug
+                        #print('\rWriting to "dump_convolving_image_oversampled.fits" ...')
+                        #dump_hdu = fits.PrimaryHDU(convolving_image_oversampled)
+                        #dump_hdu.writeto('dump_convolving_image_oversampled.fits', overwrite=True)
+                        #print('\rWritten to "dump_convolving_image_oversampled.fits"')
+                        # debug
+                        #print('\rWriting to "dump_convolving_image.fits" ...')
+                        #dump_hdu = fits.PrimaryHDU(convolving_image)
+                        #dump_hdu.writeto('dump_convolving_image.fits', overwrite=True)
+                        #print('\rWritten to "dump_convolving_image.fits"')
+                        # 
+                        # 
+                        # first oversample the grid, then generate source shape, then convolve, then resample back. 
+                        data_2D_oversampled = np.full(np.array(list(input_image_data.shape))*oversampling_factor, 0.0)
+                        mgrid_y_oversampled, mgrid_x_oversampled = self.resample_mgrid(mgrid_y, mgrid_x, oversampling_factor)
+                        data_2D_oversampled = self.shape.func((mgrid_x_oversampled-x) * pixel_scale, (mgrid_y_oversampled-y) * pixel_scale)
+                        #print('np.sum(data_2D_oversampled)', np.sum(data_2D_oversampled))
+                        data_2D_oversampled = convolve(data_2D_oversampled, convolving_image_oversampled)
+                        #print('np.sum(data_2D_oversampled)', np.sum(data_2D_oversampled))
+                        data_2D = data_2D_oversampled[::oversampling_factor, ::oversampling_factor]
+                        #print('np.sum(data_2D)', np.sum(data_2D))
+                        data_2D = data_2D * float(oversampling_factor)**2
+                        #print('np.sum(data_2D)', np.sum(data_2D))
+                else:
+                    # else if the source size is large enough, we do not need oversampling. 
+                    #data_2D = np.full([input_image_data.shape[0], input_image_data.shape[1]], 0.0)
+                    data_2D = self.shape.func((mgrid_x-x) * pixel_scale, (mgrid_y-y) * pixel_scale)
+                    data_2D = convolve(data_2D, convolving_image)
+                # 
+            #print('flux', flux, 'sum(data_2D)', np.sum(data_2D))
+            return input_image_data + flux * data_2D
+        # 
         return None
     # 
     def is_valid(self):
@@ -449,12 +685,15 @@ class CrabGalaxy(object):
                     temp_w = SED['w']
                     temp_f = SED['f']
                     temp_f_err = None
+                    temp_f_unit = None
                     temp_band_name = None
                     if 'f_err' in SED:
                         temp_f_err = SED['f_err']
+                    if 'f_unit' in SED:
+                        temp_f_unit = SED['f_unit']
                     if 'band_name' in SED:
                         temp_band_name = SED['band_name']
-                    self.SED.set_data(w = temp_w, f = temp_f, f_err = temp_f_err, band_name = temp_band_name)
+                    self.SED.set_data(w = temp_w, f = temp_f, f_err = temp_f_err, f_unit = temp_f_unit, band_name = temp_band_name)
                 else:
                     raise ValueError('Error input of SED! If it is a dict, it should contain at least \'w\' and \'f\', and optionally \'f_err\' and \'band_name\'.')
             # 
@@ -466,9 +705,11 @@ class CrabGalaxy(object):
                     temp_band_name = None
                     if 'f_err' in SED:
                         temp_f_err = SED['f_err'].data.tolist()
+                    if 'f_unit' in SED:
+                        temp_f_unit = SED['f_unit'].data.tolist()
                     if 'band_name' in SED:
                         temp_band_name = SED['band_name'].data.tolist()
-                    self.SED.set_data(w = temp_w, f = temp_f, f_err = temp_f_err, band_name = temp_band_name)
+                    self.SED.set_data(w = temp_w, f = temp_f, f_err = temp_f_err, f_unit = temp_f_unit, band_name = temp_band_name)
                 else:
                     raise ValueError('Error input of SED! If it is a dict, it should contain at least \'w\' and \'f\', and optionally \'f_err\' and \'band_name\'.')
             # 
@@ -477,16 +718,21 @@ class CrabGalaxy(object):
                     temp_w = SED[0]
                     temp_f = SED[1]
                     temp_f_err = None
+                    temp_f_unit = None
                     temp_band_name = None
                     try: 
                         temp_f_err = SED[2]
                     except:
                         pass
                     try: 
-                        temp_band_name = SED[3]
+                        temp_f_unit = SED[3]
                     except:
                         pass
-                    self.SED.set_data(w = temp_w, f = temp_f, f_err = temp_f_err, band_name = temp_band_name)
+                    try: 
+                        temp_band_name = SED[4]
+                    except:
+                        pass
+                    self.SED.set_data(w = temp_w, f = temp_f, f_err = temp_f_err, f_unit = temp_f_unit, band_name = temp_band_name)
                 except:
                     raise ValueError('Error input of SED! It seems the input is a list but it does not contain enough data? It is better to input a astropy.table.Table or dict with at least \'w\' and \'f\' columns, and optionally \'f_err\' and \'band_name\'.')
     # 
@@ -534,13 +780,27 @@ class CrabGalaxy(object):
             ax.set_xlim([0.07, 3e5])
             ax.set_ylim([1e-6, 1e3])
             ax.set_xlabel(r'Wavelength [$\mu$m]')
-            ax.set_ylabel(r'Flux Density [mJy]')
+            ax.set_ylabel(r'Flux Density [mJy]') #<TODO># f_unit
             # 
             plt.show()
     # 
-    def inject_into_image(self, input_image_data, pixel_scale, pos_x, pos_y, mgrid_x = None, mgrid_y = None):
+    def inject_into_image(self, input_image_data, pixel_scale, 
+                                flux = None, band = None, 
+                                x = None, y = None, 
+                                mgrid_x = None, mgrid_y = None, 
+                                convolving_beam = None, 
+                                convolving_image = None, 
+                                oversampling_factor = None, 
+                                convolving_image_oversampled = None):
         if self.Morph.is_valid():
-            return self.Morph.inject_into_image(input_image_data, pixel_scale, pos_x, pos_y, mgrid_x, mgrid_y)
+            return self.Morph.inject_into_image(input_image_data, pixel_scale, 
+                                                flux = flux, band = band, 
+                                                x = x, y = y, 
+                                                mgrid_x = mgrid_x, mgrid_y = mgrid_y, 
+                                                convolving_beam = convolving_beam, 
+                                                convolving_image = convolving_image, 
+                                                oversampling_factor = oversampling_factor, 
+                                                convolving_image_oversampled = convolving_image_oversampled)
         return None
 
 
