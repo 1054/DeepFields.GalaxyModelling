@@ -1,0 +1,5 @@
+Size vs stellar mass, check Schreiber2017
+IRX = log10(LIR/LUV), Schreiber2017 used IRX = (0.45 * min(z,3.0) + 0.35) * (lgMstar-10.5) + 1.2
+
+IR size radio size << optical size
+

@@ -1,0 +1,14 @@
+Here we updated the correlation between <U> and z from Bethermin+2015
+
+    u = 3.0 * (1.0+z)**1.80
+    set z = (u/3.0)**(1.00/1.80)-1.0
+
+The original Magdis+2012 one is
+
+    u = (1.0+z)**1.15
+
+
+
+
+
+Template "sed_z101_U101_radio.txt" means starburst template with <U> of about 35. 
