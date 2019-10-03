@@ -975,8 +975,8 @@ def generate_image(input_wavelength_um_or_band_name, input_noise_map_Jy_per_beam
     skypatch_region_file.write('image\n')
     # 
     # make sky patches (chunks) and loop galaxies within each sky patch
-    xstep = 800
-    ystep = 800
+    xstep = 2000
+    ystep = 2000
     xbuffer = int(np.ceil(10.0/pixscale)) # 10 arcsec buffer at each side
     ybuffer = int(np.ceil(10.0/pixscale)) # 10 arcsec buffer at each side
     iskypatch = 0
@@ -1082,7 +1082,7 @@ def generate_image(input_wavelength_um_or_band_name, input_noise_map_Jy_per_beam
                     nskypatch += 1
                     # 
                     # dump
-                    if nskypatch > 0 and (nskypatch == 5 or nskypatch % 37 == 0):
+                    if nskypatch > 0 and (nskypatch == 5 or nskypatch % 15 == 0):
                         if verbose_mode:
                             print('\rWriting to "Output_simulated_image.dump.fits" ...')
                         dump_hdu = fits.PrimaryHDU(data = data_image, header = data_wcs.to_header())
