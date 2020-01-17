@@ -324,7 +324,7 @@ def generate_galaxy_numbers(area_arcmin2):
                 output_dict['Maj_kpc'].extend(galaxy_Maj_kpc.tolist()) # optical_R_eff_Maj_kpc
                 output_dict['Min_kpc'].extend(galaxy_Min_kpc.tolist()) # optical_R_eff_Min_kpc
                 output_dict['PA'].extend(galaxy_PA.tolist())
-                output_dict['kpc2arcsec'].extend([kpc2arcsec]*len(galaxy_PA))
+                output_dict['kpc2arcsec'].extend(kpc2arcsec.tolist())
                 
             # 
             print('z = %5.3f - %5.3f, lgMstar = %4.2f - %4.2f, comoving_volume = %.3e Mpc3, galaxy_number = %d, starburst_number = %d, merger_fraction = %.2f%%'%(z[i], z[i+1], lgMstar[j], lgMstar[j+1], comoving_volume, galaxy_number, starburst_number, merger_fraction*100.0))
