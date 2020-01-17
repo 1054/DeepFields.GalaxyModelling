@@ -30,6 +30,7 @@ from CrabGalaxy import CrabGalaxy, CrabGalaxyMorphology
 from CrabTable import CrabTableReadInfo
 from calc_galaxy_stellar_mass_function import (calc_SMF_Davidzon2017, calc_SMF_Ilbert2013, calc_SMF_Peng2010, calc_SMF_Wright2018_single_component, calc_SMF_Wright2018_double_component, calc_SMF_dzliu2018)
 from calc_galaxy_main_sequence import (calc_SFR_MS_Speagle2014, calc_SFR_MS_Sargent2014, calc_SFR_MS_Schreiber2015, calc_SFR_MS_Leslie20190710, calc_SFR_MS_Leslie20191212)
+from calc_galaxy_dust_obscuration import (calc_IRX_Whitaker2017, calc_IRX_Schreiber2017)
 from calc_cosmic_star_formation_rate_density import (calc_CSFRD_Madau2014, calc_CSFRD_Liu2018, convert_age_to_z)
 from matplotlib import pyplot as plt
 from matplotlib import ticker as ticker
@@ -724,10 +725,17 @@ def generate_galaxy_SEDs():
     sSFR = model_galaxy_table['sSFR'].data
     lgMstar = model_galaxy_table['lgMstar'].data
     Mstar = 10**lgMstar
-    LIR = 10**(model_galaxy_table['lgSFR'].data) * 1e10
+    SFR = 10**(model_galaxy_table['lgSFR'].data)
+    IRX, f_obscured, SFR_UV, SFR_IR = calc_IRX_Whitaker2017(lgMstar, SFR)
+    LIR = SFR_IR * 1e10
     zAge = model_galaxy_table['cosmoAge'].data
-    #qIR = 2.35*(1.0+z)**(-0.12)+np.log10(1.91) # Magnelli 2015A%26A...573A..45M
-    qIR = 2.85*(1.0+z)**(-0.22) # Delhaize 2017A&A...602A...4D
+    # 
+    # store into table
+    model_galaxy_table['IRX'] = IRX
+    model_galaxy_table['f_obscured'] = f_obscured
+    model_galaxy_table['SFR_UV'] = SFR_UV
+    model_galaxy_table['SFR_IR'] = SFR_IR
+    model_galaxy_table['LIR'] = LIR
     # 
     # assuming galaxy age
     Age = 1.0/sSFR # set galaxy age to 1.0/sSFR (~5Gyr at z~0.1, ~1Gyr at z~1, to ~0.4Gyr at z~4)
@@ -776,9 +784,24 @@ def generate_galaxy_SEDs():
     #   qIR = log10(LIR/[Lsun] / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / ((3.085677e22**2*1e-29)/(3.839e26/3.75e12)) )
     #   qIR = log10(LIR/[Lsun] / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / 93.00666724728771 )
     #   10**qIR = (LIR/[Lsun]) / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / 93.00666724728771
-    radio_flux_at_rest_frame_1p4GHz = LIR / (4*np.pi*dL**2) / 93.75 / 10**qIR
+    lgL_TIR = np.log10(SFR_IR) + 43.41 - 7 + 0.0267 # in units of W. Sarah is using the TIR calibration from Murphy+11(also KE12) converted to chabrier imf. See Sarah's email on 2019-12-12.
+    lgL_radio = (lgL_TIR - 5.96 - 12.574) / 0.845 # in units of W. Applied qIR, from Sarah
+    qIR = -0.155 * lgL_radio + 5.96 # Molnar+2020
+    radio_flux_at_rest_frame_1p4GHz = 10**lgL_radio
     radio_flux_at_obs_frame_3GHz = radio_flux_at_rest_frame_1p4GHz * (1.0+z) * (3.0*(1.0+z)/1.4)**(-0.8)
+    # 
+    #qIR = 2.35*(1.0+z)**(-0.12)+np.log10(1.91) # Magnelli 2015A%26A...573A..45M
+    #qIR = 2.85*(1.0+z)**(-0.22) # Delhaize 2017A&A...602A...4D
+    qIR = (-0.155*(np.log10((LIR*3.839e26)/3.75e12)) + 5.96) / 0.845 # Molnar 2019/2020
+    radio_flux_at_rest_frame_1p4GHz_to_check = LIR / (4*np.pi*dL**2) / 93.75 / 10**qIR # mJy
+    radio_flux_at_obs_frame_3GHz_to_check = radio_flux_at_rest_frame_1p4GHz_to_check * (1.0+z) * (3.0*(1.0+z)/1.4)**(-0.8)
+    # 
+    # store into table
+    model_galaxy_table['qIR'] = qIR
+    model_galaxy_table['SED_rest1p4GHz'] = radio_flux_at_rest_frame_1p4GHz # mJy
     model_galaxy_table['SED_3GHz'] = radio_flux_at_obs_frame_3GHz # mJy
+    model_galaxy_table['SED_rest1p4GHz_to_check'] = radio_flux_at_rest_frame_1p4GHz_to_check # mJy
+    model_galaxy_table['SED_3GHz_to_check'] = radio_flux_at_obs_frame_3GHz_to_check # mJy
     # 
     # 
     # save 
