@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python#
 # 
-# <20191004> assuming half optical sizes for galaxy radio size or millimetre size
+# #<TODO><20191004># assuming half optical sizes for radio / millimetre #<TODO><20191004>#
 # 
 from __future__ import print_function
 import os, sys, re, json, shutil, random, timeit, datetime, time
@@ -29,7 +29,7 @@ sys.path.append(os.getenv('HOME')+'/Cloud/GitLab/AlmaCosmos/Plot/Common_Python_C
 from CrabGalaxy import CrabGalaxy, CrabGalaxyMorphology
 from CrabTable import CrabTableReadInfo
 from calc_galaxy_stellar_mass_function import (calc_SMF_Davidzon2017, calc_SMF_Ilbert2013, calc_SMF_Peng2010, calc_SMF_Wright2018_single_component, calc_SMF_Wright2018_double_component, calc_SMF_dzliu2018)
-from calc_galaxy_main_sequence import (calc_SFR_MS_Speagle2014, calc_SFR_MS_Sargent2014, calc_SFR_MS_Schreiber2015, calc_SFR_MS_Leslie20190710, calc_SFR_MS_Leslie20191212)
+from calc_galaxy_main_sequence import (calc_SFR_MS_Speagle2014, calc_SFR_MS_Sargent2014, calc_SFR_MS_Schreiber2015, calc_SFR_MS_Leslie20190710)
 from calc_cosmic_star_formation_rate_density import (calc_CSFRD_Madau2014, calc_CSFRD_Liu2018, convert_age_to_z)
 from matplotlib import pyplot as plt
 from matplotlib import ticker as ticker
@@ -42,9 +42,8 @@ ln = np.log
 
 
 global calc_SFR_MS
-###calc_SFR_MS = calc_SFR_MS_Leslie20190710 ; label_SF_MS = 'Leslie+2019'
-calc_SFR_MS = calc_SFR_MS_Leslie20191212 ; label_SF_MS = 'Leslie+2019'
-#calc_SFR_MS = calc_SFR_MS_Speagle2014 ; label_SF_MS = 'Speagle+2014'
+#calc_SFR_MS = calc_SFR_MS_Leslie20190710 ; label_SF_MS = 'Leslie+2019'
+calc_SFR_MS = calc_SFR_MS_Speagle2014 ; label_SF_MS = 'Speagle+2014'
 #calc_SFR_MS = calc_SFR_MS_Sargent2014 ; label_SF_MS = 'Sargent+2014'
 #calc_SFR_MS = calc_SFR_MS_Schreiber2015 ; label_SF_MS = 'Schreiber+2015'
 
@@ -136,7 +135,7 @@ def calc_Galaxy_Size_vanderWel2014(z, Mstar, galaxy_type = 'SFG', add_noise = Fa
     A = np.interp(z, cmorph_z, cmorph_A)
     N = np.interp(z, cmorph_z, cmorph_N)
     E = np.interp(z, cmorph_z, cmorph_E)
-    R_eff_kpc = 10**A * (Mstar/5e10)**N
+    R_eff_kpc = (10**A * (Mstar/5e10)**N) * 2.0
     # 
     # add some noise 
     add_noise = False
@@ -187,8 +186,9 @@ def generate_galaxy_numbers(area_arcmin2):
     output_dict['SB'] = []
     output_dict['Maj_kpc'] = []
     output_dict['Min_kpc'] = []
+    output_dict['Maj_arcsec'] = []
+    output_dict['Min_arcsec'] = []
     output_dict['PA'] = []
-    output_dict['kpc2arcsec'] = []
     # 
     # loop redshift bins
     for i in range(len(z)-1):
@@ -286,8 +286,8 @@ def generate_galaxy_numbers(area_arcmin2):
                 output_dict['lgMstar'].extend(galaxy_lgMstar.tolist())
                 output_dict['lgSFR'].extend(galaxy_lgSFR.tolist())
                 output_dict['SB'].extend(galaxy_starbursty.tolist())
-                output_dict['Maj_kpc'].extend(galaxy_Maj_kpc.tolist()) # optical_R_eff_Maj_kpc
-                output_dict['Min_kpc'].extend(galaxy_Min_kpc.tolist()) # optical_R_eff_Min_kpc
+                output_dict['Maj_kpc'].extend(galaxy_Maj_kpc.tolist())
+                output_dict['Min_kpc'].extend(galaxy_Min_kpc.tolist())
                 output_dict['PA'].extend(galaxy_PA.tolist())
                 
             elif starburst_number == galaxy_number:
@@ -314,16 +314,19 @@ def generate_galaxy_numbers(area_arcmin2):
                 galaxy_dL = cosmo.luminosity_distance(galaxy_z).to('Mpc').value
                 galaxy_dA = galaxy_dL / (1.0+galaxy_z)**2
                 kpc2arcsec = 1e-3/(galaxy_dA)/np.pi*180.0*3600.0
+                galaxy_Maj_arcsec = galaxy_Maj_kpc * kpc2arcsec
+                galaxy_Min_arcsec = galaxy_Min_kpc * kpc2arcsec
                 # append to output dict
                 output_dict['z'].extend(galaxy_z.tolist())
                 output_dict['cosmoAge'].extend(galaxy_t_cosmic_age.tolist())
                 output_dict['lgMstar'].extend(galaxy_lgMstar.tolist())
                 output_dict['lgSFR'].extend(galaxy_lgSFR.tolist())
                 output_dict['SB'].extend(galaxy_starbursty.tolist())
-                output_dict['Maj_kpc'].extend(galaxy_Maj_kpc.tolist()) # optical_R_eff_Maj_kpc
-                output_dict['Min_kpc'].extend(galaxy_Min_kpc.tolist()) # optical_R_eff_Min_kpc
+                output_dict['Maj_kpc'].extend(galaxy_Maj_kpc.tolist())
+                output_dict['Min_kpc'].extend(galaxy_Min_kpc.tolist())
+                output_dict['Maj_arcsec'].extend(galaxy_Maj_arcsec.tolist())
+                output_dict['Min_arcsec'].extend(galaxy_Min_arcsec.tolist())
                 output_dict['PA'].extend(galaxy_PA.tolist())
-                output_dict['kpc2arcsec'].extend([kpc2arcsec]*len(galaxy_PA))
                 
             # 
             print('z = %5.3f - %5.3f, lgMstar = %4.2f - %4.2f, comoving_volume = %.3e Mpc3, galaxy_number = %d, starburst_number = %d, merger_fraction = %.2f%%'%(z[i], z[i+1], lgMstar[j], lgMstar[j+1], comoving_volume, galaxy_number, starburst_number, merger_fraction*100.0))
@@ -767,15 +770,6 @@ def generate_galaxy_SEDs():
     # 
     # 
     # calc SED flux (at rest-frame 1.4 GHz only)
-    # qIR definition:
-    #   qIR = log10(LIR/3.75e12[W]) - log10(L1.4GHz/[W Hz-1])
-    #   qIR = log10(LIR*3.839e26/3.75e12[Lsun]) - log10(4*pi*(dL/[m])**2*(S1.4GHz/[W m-2 Hz-1]))
-    #   qIR = log10(LIR*3.839e26/3.75e12[Lsun]) - log10(4*pi*(dL/[m])**2*(S1.4GHz*1e-29/[mJy]))
-    #   qIR = log10(LIR*3.839e26/3.75e12[Lsun]) - log10(4*pi*(dL*3.085677e22/[Mpc])**2*(S1.4GHz*1e-29/[mJy]))
-    #   qIR = log10(LIR/[Lsun] * (3.839e26/3.75e12) / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / (3.085677e22**2*1e-29) )
-    #   qIR = log10(LIR/[Lsun] / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / ((3.085677e22**2*1e-29)/(3.839e26/3.75e12)) )
-    #   qIR = log10(LIR/[Lsun] / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / 93.00666724728771 )
-    #   10**qIR = (LIR/[Lsun]) / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / 93.00666724728771
     radio_flux_at_rest_frame_1p4GHz = LIR / (4*np.pi*dL**2) / 93.75 / 10**qIR
     radio_flux_at_obs_frame_3GHz = radio_flux_at_rest_frame_1p4GHz * (1.0+z) * (3.0*(1.0+z)/1.4)**(-0.8)
     model_galaxy_table['SED_3GHz'] = radio_flux_at_obs_frame_3GHz # mJy
@@ -861,7 +855,7 @@ def generate_image(input_wavelength_um_or_band_name, input_sci_image = None, inp
     # 
     # check existing output file
     if output_name is None:
-        output_name = 'Output_simulated_image'
+        output_name = 'Output_simulated_image_without_noise_and_convolution'
     if os.path.isfile('%s.fits'%(output_name)):
         print('Found existing "%s.fits"! Will not overwrite it!'%(output_name))
         return
@@ -892,8 +886,8 @@ def generate_image(input_wavelength_um_or_band_name, input_sci_image = None, inp
     galaxy_z = model_galaxy_table['z'].data
     galaxy_RA = model_galaxy_table['RA'].data
     galaxy_Dec = model_galaxy_table['Dec'].data
-    galaxy_Maj_arcsec = model_galaxy_table['Maj_kpc'].data * model_galaxy_table['kpc2arcsec'].data * 2.43 / 2.0 # <20191004> converting to Gaussian FWHM by multiplying 2.43 (Murphy2017; Bondi2018), and assuming galaxy radio size is 1/2.0 the optical size.
-    galaxy_Min_arcsec = model_galaxy_table['Min_kpc'].data * model_galaxy_table['kpc2arcsec'].data * 2.43 / 2.0 # <20191004> converting to Gaussian FWHM by multiplying 2.43 (Murphy2017; Bondi2018), and assuming galaxy radio size is 1/2.0 the optical size.
+    galaxy_Maj_arcsec = model_galaxy_table['Maj_arcsec'].data / 2.5 # assuming half optical sizes for radio / millimetre #<TODO><20191004>#
+    galaxy_Min_arcsec = model_galaxy_table['Min_arcsec'].data / 2.5 # assuming half optical sizes for radio / millimetre #<TODO><20191004>#
     galaxy_PA = model_galaxy_table['PA'].data
     z = galaxy_z
     # 
@@ -1037,8 +1031,8 @@ def generate_image(input_wavelength_um_or_band_name, input_sci_image = None, inp
         skypatch_region_file.write('image\n')
     # 
     # make sky patches (chunks) and loop galaxies within each sky patch
-    xstep = 2000
-    ystep = 2000
+    xstep = 800
+    ystep = 800
     xbuffer = int(np.ceil(10.0/pixscale)) # 10 arcsec buffer at each side
     ybuffer = int(np.ceil(10.0/pixscale)) # 10 arcsec buffer at each side
     iskypatch = 0
@@ -1122,8 +1116,7 @@ def generate_image(input_wavelength_um_or_band_name, input_sci_image = None, inp
                         # 
                         # convert flux from Jy to Jy/beam if the user has given a beam size
                         if input_beam_FWHM_arcsec is not None:
-                            #flux = flux * PSF_FWHM_pixel**2 # Jy/beam
-                            flux = flux * np.pi/(4.0*np.log(2.0)) * PSF_FWHM_pixel**2 # Jy/beam
+                            flux = flux * PSF_FWHM_pixel**2 # Jy/beam
                         # 
                         # calculate x y coordinates (0-based) inside the skypatch (with buffer)
                         x = xypairs[k,0]-buf_x0 # coordinate (0-based) inside the skypatch (with buffer)
@@ -1261,13 +1254,13 @@ if __name__ == '__main__':
     area_arcmin2 = area.to(u.arcmin**2).value
     print('area_arcmin2 = %s'%(area_arcmin2))
     # 
-    generate_galaxy_numbers(area_arcmin2)
+    #generate_galaxy_numbers(area_arcmin2)
     # 
-    generate_galaxy_coordinates(RA00, Dec00, RA11, Dec11)
+    #generate_galaxy_coordinates(RA00, Dec00, RA11, Dec11)
     # 
-    generate_galaxy_SEDs()
+    #generate_galaxy_SEDs()
     # 
-    generate_image('3GHz', input_noise_map = 'input_images/vla_3ghz_msmf.rms.fits', input_beam_FWHM_arcsec = 0.75)
+    generate_image('3GHz', input_sci_image = 'VLA_3GHz_image/vla_3ghz_msmf.fits')
 
 
 

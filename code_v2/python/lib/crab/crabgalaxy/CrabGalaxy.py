@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # 
 # see also '/Users/dzliu/Work/AlmaCosmos/Simulations/CASA_Sim/Sim_a_sample_of_circular_Gaussian_sources/run_stacking/a_dzliu_code_plot_radial_profile.py'
+# Last update: 2020-01-17 11h33m CET
 # 
 
 
@@ -281,11 +282,17 @@ class CrabGalaxyMorphology(object):
             ddy = np.full(dy.shape, np.nan)
             for k in range(len(dx)):
                 ddx[k], ddy[k] = np.matmul(rot_mat, [dx[k], dy[k]])
-            sigx = self.major/(np.sqrt(2.0*np.log(2.0)))
-            sigy = self.minor/(np.sqrt(2.0*np.log(2.0)))
+            #<20191028><BUGGY># sigx = self.major/(np.sqrt(2.0*np.log(2.0))) # this is equivalent to 2.0 * Gaussian_sigma
+            #<20191028><BUGGY># sigy = self.minor/(np.sqrt(2.0*np.log(2.0))) # this is equivalent to 2.0 * Gaussian_sigma
+            #<20191028><BUGGY># # output array is normalized to have a total area of 1.0 / pixscale**2
+            #<20191028><BUGGY># return np.exp( - ( (ddx/sigx)**2 + \
+            #<20191028><BUGGY>#                    (ddy/sigy)**2 ) ) / (np.pi*sigx*sigy)
+            # 
+            sigx = self.major/(2.0*np.sqrt(2.0*np.log(2.0)))
+            sigy = self.minor/(2.0*np.sqrt(2.0*np.log(2.0)))
             # output array is normalized to have a total area of 1.0 / pixscale**2
-            return np.exp( - ( (ddx/sigx)**2 + \
-                               (ddy/sigy)**2 ) ) / (np.pi*sigx*sigy)
+            return np.exp( - ( (ddx**2/(2.0*sigx**2)) + \
+                               (ddy**2/(2.0*sigy**2)) ) ) / (2.0*np.pi*sigx*sigy)
         def __str__(self):
             return 'Shape: %s, major: %s [arcsec], minor: %s [arcsec], PA: %s [degree].'%(\
                         self.name, self.major, self.minor, self.angle)
@@ -372,7 +379,11 @@ class CrabGalaxyMorphology(object):
                 if 'major' in input_size and 'minor' in input_size and 'angle' in input_size:
                     self.shape = self.gaussian_shape_class(input_size['major'], input_size['minor'], input_size['angle'])
                 elif 'fwhm' in input_size:
-                    self.shape = self.gaussian_shape_class(input_size['reff'], input_size['reff'], 0.0, input_size['n'])
+                    self.shape = self.gaussian_shape_class(input_size['fwhm'], input_size['fwhm'], 0.0)
+                elif 'reff' in input_size:
+                    self.shape = self.gaussian_shape_class(input_size['reff']*2.43, input_size['reff']*2.43, 0.0)
+                elif 'r_eff' in input_size:
+                    self.shape = self.gaussian_shape_class(input_size['r_eff']*2.43, input_size['r_eff']*2.43, 0.0)
                 else:
                     raise ValueError('Error input of size to the function CrabGalaxyMorphology::set_shape_and_size()! For Gaussian it can be a dict with \'major\', \'minor\' and \'PA\', or simply one \'FWHM\' value.')
             # else if input only one float number as the size, then the shape is a circular gaussian
@@ -401,6 +412,8 @@ class CrabGalaxyMorphology(object):
                     self.shape = self.sersic_shape_class(input_size['major'], input_size['minor'], input_size['angle'], input_size['n'])
                 elif 'reff' in input_size and 'n' in input_size:
                     self.shape = self.sersic_shape_class(input_size['reff'], input_size['reff'], 0.0, input_size['n'])
+                elif 'r_eff' in input_size and 'n' in input_size:
+                    self.shape = self.sersic_shape_class(input_size['r_eff'], input_size['reff'], 0.0, input_size['n'])
                 else:
                     raise ValueError('Error input of size to the function CrabGalaxyMorphology::set_shape_and_size()! For Sersic it can be a dict with \'major\', \'minor\', \'PA\' and \'n\', or simply \'reff\' and \'n\'.')
             # otherwise try to fill in sersic major and minor effective raidii and position angle and sersic index

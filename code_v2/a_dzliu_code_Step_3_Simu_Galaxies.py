@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # 
+# <20191004> assuming half optical sizes for galaxy radio size or millimetre size
+# 
 from __future__ import print_function
-import os, sys, re, json, shutil, random, timeit
+import os, sys, re, json, shutil, random, timeit, datetime, time
 from tqdm import tqdm, trange
 import numpy as np
 import warnings
@@ -27,7 +29,7 @@ sys.path.append(os.getenv('HOME')+'/Cloud/GitLab/AlmaCosmos/Plot/Common_Python_C
 from CrabGalaxy import CrabGalaxy, CrabGalaxyMorphology
 from CrabTable import CrabTableReadInfo
 from calc_galaxy_stellar_mass_function import (calc_SMF_Davidzon2017, calc_SMF_Ilbert2013, calc_SMF_Peng2010, calc_SMF_Wright2018_single_component, calc_SMF_Wright2018_double_component, calc_SMF_dzliu2018)
-from calc_galaxy_main_sequence import (calc_SFR_MS_Speagle2014, calc_SFR_MS_Sargent2014, calc_SFR_MS_Schreiber2015, calc_SFR_MS_Leslie20190710)
+from calc_galaxy_main_sequence import (calc_SFR_MS_Speagle2014, calc_SFR_MS_Sargent2014, calc_SFR_MS_Schreiber2015, calc_SFR_MS_Leslie20190710, calc_SFR_MS_Leslie20191212)
 from calc_cosmic_star_formation_rate_density import (calc_CSFRD_Madau2014, calc_CSFRD_Liu2018, convert_age_to_z)
 from matplotlib import pyplot as plt
 from matplotlib import ticker as ticker
@@ -40,8 +42,9 @@ ln = np.log
 
 
 global calc_SFR_MS
-#calc_SFR_MS = calc_SFR_MS_Leslie20190710 ; label_SF_MS = 'Leslie+2019'
-calc_SFR_MS = calc_SFR_MS_Speagle2014 ; label_SF_MS = 'Speagle+2014'
+###calc_SFR_MS = calc_SFR_MS_Leslie20190710 ; label_SF_MS = 'Leslie+2019'
+calc_SFR_MS = calc_SFR_MS_Leslie20191212 ; label_SF_MS = 'Leslie+2019'
+#calc_SFR_MS = calc_SFR_MS_Speagle2014 ; label_SF_MS = 'Speagle+2014'
 #calc_SFR_MS = calc_SFR_MS_Sargent2014 ; label_SF_MS = 'Sargent+2014'
 #calc_SFR_MS = calc_SFR_MS_Schreiber2015 ; label_SF_MS = 'Schreiber+2015'
 
@@ -133,7 +136,7 @@ def calc_Galaxy_Size_vanderWel2014(z, Mstar, galaxy_type = 'SFG', add_noise = Fa
     A = np.interp(z, cmorph_z, cmorph_A)
     N = np.interp(z, cmorph_z, cmorph_N)
     E = np.interp(z, cmorph_z, cmorph_E)
-    R_eff_kpc = (10**A * (Mstar/5e10)**N) * 2.0
+    R_eff_kpc = 10**A * (Mstar/5e10)**N
     # 
     # add some noise 
     add_noise = False
@@ -184,9 +187,8 @@ def generate_galaxy_numbers(area_arcmin2):
     output_dict['SB'] = []
     output_dict['Maj_kpc'] = []
     output_dict['Min_kpc'] = []
-    output_dict['Maj_arcsec'] = []
-    output_dict['Min_arcsec'] = []
     output_dict['PA'] = []
+    output_dict['kpc2arcsec'] = []
     # 
     # loop redshift bins
     for i in range(len(z)-1):
@@ -249,7 +251,7 @@ def generate_galaxy_numbers(area_arcmin2):
             merger_fraction = 0.03 if (z[i]>=1.0) else ((z[i]-0.0)/(1.0-0.0)*(0.030-0.015)+0.015) # 1.5% at z=0.0 to 3% at z=1.0, then being constant.
             starburst_fraction = 0.03 if (z[i]>=1.0) else ((z[i]-0.0)/(1.0-0.0)*(0.030-0.015)+0.015) # 1.5% at z=0.0 to 3% at z=1.0, then being constant.
             # 
-            # test 3 -- no starburst at all
+            # test 3 -- no starburst at all #<TODO><20191001># after discussion, now test without starbursts
             starburst_fraction = 0.0
             # 
             # calculate starburst number and set starburst boosting factor (in dex)
@@ -284,8 +286,8 @@ def generate_galaxy_numbers(area_arcmin2):
                 output_dict['lgMstar'].extend(galaxy_lgMstar.tolist())
                 output_dict['lgSFR'].extend(galaxy_lgSFR.tolist())
                 output_dict['SB'].extend(galaxy_starbursty.tolist())
-                output_dict['Maj_kpc'].extend(galaxy_Maj_kpc.tolist())
-                output_dict['Min_kpc'].extend(galaxy_Min_kpc.tolist())
+                output_dict['Maj_kpc'].extend(galaxy_Maj_kpc.tolist()) # optical_R_eff_Maj_kpc
+                output_dict['Min_kpc'].extend(galaxy_Min_kpc.tolist()) # optical_R_eff_Min_kpc
                 output_dict['PA'].extend(galaxy_PA.tolist())
                 
             elif starburst_number == galaxy_number:
@@ -312,19 +314,16 @@ def generate_galaxy_numbers(area_arcmin2):
                 galaxy_dL = cosmo.luminosity_distance(galaxy_z).to('Mpc').value
                 galaxy_dA = galaxy_dL / (1.0+galaxy_z)**2
                 kpc2arcsec = 1e-3/(galaxy_dA)/np.pi*180.0*3600.0
-                galaxy_Maj_arcsec = galaxy_Maj_kpc * kpc2arcsec
-                galaxy_Min_arcsec = galaxy_Min_kpc * kpc2arcsec
                 # append to output dict
                 output_dict['z'].extend(galaxy_z.tolist())
                 output_dict['cosmoAge'].extend(galaxy_t_cosmic_age.tolist())
                 output_dict['lgMstar'].extend(galaxy_lgMstar.tolist())
                 output_dict['lgSFR'].extend(galaxy_lgSFR.tolist())
                 output_dict['SB'].extend(galaxy_starbursty.tolist())
-                output_dict['Maj_kpc'].extend(galaxy_Maj_kpc.tolist())
-                output_dict['Min_kpc'].extend(galaxy_Min_kpc.tolist())
-                output_dict['Maj_arcsec'].extend(galaxy_Maj_arcsec.tolist())
-                output_dict['Min_arcsec'].extend(galaxy_Min_arcsec.tolist())
+                output_dict['Maj_kpc'].extend(galaxy_Maj_kpc.tolist()) # optical_R_eff_Maj_kpc
+                output_dict['Min_kpc'].extend(galaxy_Min_kpc.tolist()) # optical_R_eff_Min_kpc
                 output_dict['PA'].extend(galaxy_PA.tolist())
+                output_dict['kpc2arcsec'].extend([kpc2arcsec]*len(galaxy_PA))
                 
             # 
             print('z = %5.3f - %5.3f, lgMstar = %4.2f - %4.2f, comoving_volume = %.3e Mpc3, galaxy_number = %d, starburst_number = %d, merger_fraction = %.2f%%'%(z[i], z[i+1], lgMstar[j], lgMstar[j+1], comoving_volume, galaxy_number, starburst_number, merger_fraction*100.0))
@@ -768,6 +767,15 @@ def generate_galaxy_SEDs():
     # 
     # 
     # calc SED flux (at rest-frame 1.4 GHz only)
+    # qIR definition:
+    #   qIR = log10(LIR/3.75e12[W]) - log10(L1.4GHz/[W Hz-1])
+    #   qIR = log10(LIR*3.839e26/3.75e12[Lsun]) - log10(4*pi*(dL/[m])**2*(S1.4GHz/[W m-2 Hz-1]))
+    #   qIR = log10(LIR*3.839e26/3.75e12[Lsun]) - log10(4*pi*(dL/[m])**2*(S1.4GHz*1e-29/[mJy]))
+    #   qIR = log10(LIR*3.839e26/3.75e12[Lsun]) - log10(4*pi*(dL*3.085677e22/[Mpc])**2*(S1.4GHz*1e-29/[mJy]))
+    #   qIR = log10(LIR/[Lsun] * (3.839e26/3.75e12) / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / (3.085677e22**2*1e-29) )
+    #   qIR = log10(LIR/[Lsun] / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / ((3.085677e22**2*1e-29)/(3.839e26/3.75e12)) )
+    #   qIR = log10(LIR/[Lsun] / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / 93.00666724728771 )
+    #   10**qIR = (LIR/[Lsun]) / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / 93.00666724728771
     radio_flux_at_rest_frame_1p4GHz = LIR / (4*np.pi*dL**2) / 93.75 / 10**qIR
     radio_flux_at_obs_frame_3GHz = radio_flux_at_rest_frame_1p4GHz * (1.0+z) * (3.0*(1.0+z)/1.4)**(-0.8)
     model_galaxy_table['SED_3GHz'] = radio_flux_at_obs_frame_3GHz # mJy
@@ -823,7 +831,10 @@ def make_noisy_image_with_noise_map(noise_map):
                 noise_median = np.median(sigma_clip(noise_data, sigma=3, masked=False)) # use median to filter out 
                 #noise_median = np.median(noise_data) # use median to filter out 
                 #print('np.random.normal')
-                image_data[y0:y1, x0:x1][mask_nan] = np.random.normal(0.0, noise_median, np.count_nonzero(mask_nan))
+                if noise_median > 0:
+                    image_data[y0:y1, x0:x1][mask_nan] = np.random.normal(0.0, noise_median, np.count_nonzero(mask_nan))
+                else:
+                    image_data[y0:y1, x0:x1][mask_nan] = 0.0 #<TODO># if noise map pixel value is non-positive, we set the data image to zero. 
                 # 
         #print('dump fits image')
         #dump_hdu = fits.PrimaryHDU(data=image_data)
@@ -843,14 +854,21 @@ def make_noisy_image_with_noise_map(noise_map):
 
 
 """
+input_sci_image will be copied and filled with zeros (but keeping the NaNs)
+input_noise_map should have Jy per beam flux unit
 """
-def generate_image(input_wavelength_um_or_band_name, input_noise_map_Jy_per_beam, input_beam_FWHM_arcsec):
+def generate_image(input_wavelength_um_or_band_name, input_sci_image = None, input_noise_map = None, input_beam_FWHM_arcsec = None, output_name = None):
     # 
     # check existing output file
-    output_name = 'simulated_image'
+    if output_name is None:
+        output_name = 'Output_simulated_image'
     if os.path.isfile('%s.fits'%(output_name)):
         print('Found existing "%s.fits"! Will not overwrite it!'%(output_name))
         return
+    # 
+    # check user input
+    if input_wavelength_um_or_band_name is None:
+        raise ValueError('Error! generate_image(): \'input_wavelength_um_or_band_name\' should be a wavelength number in unit of um or band name string.')
     # 
     # set debug mode
     debug_mode = False
@@ -867,46 +885,89 @@ def generate_image(input_wavelength_um_or_band_name, input_noise_map_Jy_per_beam
     # 
     # find the input wavelength in the mock galaxy catalog
     if not ('SED_%s'%(input_wavelength_um_or_band_name) in model_galaxy_table.colnames):
-        raise Exception('Error! The input wavelength %s is not in the mock galaxy catalog!'%(input_wavelength_um_or_band_name))
+        raise Exception('Error! generate_image(): The input wavelength %s is not in the mock galaxy catalog!'%(input_wavelength_um_or_band_name))
         sys.exit()
     # 
     galaxy_fluxes = model_galaxy_table['SED_%s'%(input_wavelength_um_or_band_name)].data
     galaxy_z = model_galaxy_table['z'].data
     galaxy_RA = model_galaxy_table['RA'].data
     galaxy_Dec = model_galaxy_table['Dec'].data
-    galaxy_Maj_arcsec = model_galaxy_table['Maj_arcsec'].data
-    galaxy_Min_arcsec = model_galaxy_table['Min_arcsec'].data
+    galaxy_Maj_arcsec = model_galaxy_table['Maj_kpc'].data * model_galaxy_table['kpc2arcsec'].data * 2.43 / 2.0 # <20191004> converting to Gaussian FWHM by multiplying 2.43 (Murphy2017; Bondi2018), and assuming galaxy radio size is 1/2.0 the optical size.
+    galaxy_Min_arcsec = model_galaxy_table['Min_kpc'].data * model_galaxy_table['kpc2arcsec'].data * 2.43 / 2.0 # <20191004> converting to Gaussian FWHM by multiplying 2.43 (Murphy2017; Bondi2018), and assuming galaxy radio size is 1/2.0 the optical size.
     galaxy_PA = model_galaxy_table['PA'].data
     z = galaxy_z
     # 
-    # read the input noise map
-    # create noisy data with the input noise information
-    if os.path.isfile('dump_noisy_image.fits'):
-        # read dump noisy image
-        print('Reading "dump_noisy_image.fits"!')
-        hdulist = fits.open('dump_noisy_image.fits')
-        hdu = hdulist[0]
-        data_header = hdu.header
-        data_image = hdu.data
-        data_wcs = WCS(data_header, naxis=2)
+    # 
+    # read data image and wcs from either 'input_sci_image' or 'input_noise_map'
+    # if 'input_noise_map' is given, then 'input_sci_image' is not used.
+    if input_sci_image is None and input_noise_map is None:
+        raise ValueError('Error! generate_image(): At least one of the \'input_sci_image\' (will be copied and filled with zeros) and \'input_noise_map\' (Jy/beam) should be provided! They should also contain WCS!')
+    # 
+    if input_sci_image is not None:
+        data_image_file = input_sci_image
+        data_image_type = 'sci_image'
+    # 
+    if input_noise_map is not None:
+        data_image_file = input_noise_map
+        data_image_type = 'noise_map'
+        # read cache file if exists
+        if os.path.isfile('%s.pure.noisy.image.fits'%(output_name)):
+            # check file consistency
+            with open('%s.pure.noisy.image.readme.txt'%(output_name), 'r') as fp:
+                check_text = fp.readline()
+                if not (check_text.find(input_noise_map) >= 0):
+                    raise Exception('Error! The recorded noise map in "%s.pure.noisy.image.readme.txt" and current input_noise_map ("%s") are inconsistent!'%(output_name, input_noise_map))
+            # read data image from the cache file
+            print('Reading "%s.pure.noisy.image.fits"!'%(output_name))
+            data_image_file = '%s.pure.noisy.image.fits'%(output_name)
+            data_image_type = 'noisy_image'
+    # 
+    print('data_image_type', data_image_type)
+    # 
+    # read data_image
+    hdulist = fits.open(data_image_file)
+    hdu = hdulist[0]
+    data_header = hdu.header
+    data_image = hdu.data
+    data_wcs = WCS(data_header, naxis=2)
+    # 
+    # chop dimension
+    while len(data_image.shape) > 2:
+        data_image = data_image[0]
+    # 
+    # process by data image types
+    if data_image_type == 'sci_image':
+        # if the user has input only a science image, then we do not simulate any noise
+        data_mask = ~np.isnan(data_image)
+        data_image[data_mask] = data_image[data_mask] * 0.0
+        # 
+    elif data_image_type == 'noise_map':
+        # if the user has input a noise map, then we simulate noise
+        noise_map = data_image # we will generate noisy map
+        # 
+        # create noisy data with the input noise information
+        data_image = make_noisy_image_with_noise_map(noise_map)
+        # 
+        # dump noisy image if it does not exist yet
+        if not os.path.isfile('%s.pure.noisy.image.fits'%(output_name)):
+            data_image = data_image.astype(np.float32, copy=False) # use dtype float32
+            print('Writing to "%s.pure.noisy.image.fits" ...'%(output_name))
+            dump_hdu = fits.PrimaryHDU(data = data_image, header = data_wcs.to_header())
+            dump_hdu.writeto('%s.pure.noisy.image.fits'%(output_name), overwrite=True)
+            print('Written to "%s.pure.noisy.image.fits"'%(output_name))
+            # 
+            # write check info into readme file
+            with open('%s.pure.noisy.image.readme.txt'%(output_name), 'w') as fp:
+                fp.write('Input noise map: '+input_noise_map+'\n')
+                fp.write('Current date time: '+datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + ' ' + time.strftime('%Z') + '\n')
+        # 
+    elif data_image_type == 'noisy_image':
+        # if the user has input a noise map and we have a consistent cache file for the noisy image, then we continue using the noisy image
+        #data_image = data_image
+        pass
+        # 
     else:
-        # read input_noise_map_Jy_per_beam
-        hdulist = fits.open(input_noise_map_Jy_per_beam)
-        hdu = hdulist[0]
-        data_header = hdu.header
-        data_image = hdu.data
-        data_wcs = WCS(data_header, naxis=2)
-        # 
-        # chop dimension
-        while len(data_image.shape) > 2:
-            data_image = data_image[0]
-        # 
-        # dump noisy image
-        data_image = make_noisy_image_with_noise_map(data_image)
-        print('Writing to "dump_noisy_image.fits" ...')
-        dump_hdu = fits.PrimaryHDU(data = data_image, header = data_wcs.to_header())
-        dump_hdu.writeto('dump_noisy_image.fits', overwrite=True)
-        print('Written to "dump_noisy_image.fits"')
+        raise NotImplementedError('Error! data_image_type %s is not implemented! This should not happen.'%(data_image_type))
     # 
     # use dtype float32
     data_image = data_image.astype(np.float32, copy=False)
@@ -961,16 +1022,19 @@ def generate_image(input_wavelength_um_or_band_name, input_noise_map_Jy_per_beam
     # 
     # resume from dumped iskypatch
     iskypatch_resume = -1
-    if os.path.isfile('Output_simulated_image.dump.iskypatch.txt') and os.path.isfile('Output_simulated_image.dump.fits'):
-        with open('Output_simulated_image.dump.iskypatch.txt', 'r') as fp:
+    if os.path.isfile('%s.dump.iskypatch.txt'%(output_name)) and os.path.isfile('%s.dump.fits'%(output_name)):
+        with open('%s.dump.iskypatch.txt'%(output_name), 'r') as fp:
             iskypatch_resume = np.int64(fp.readline())
-        data_image = fits.getdata('Output_simulated_image.dump.fits')
+        data_image = fits.getdata('%s.dump.fits'%(output_name))
         print('Resuming from iskypatch %d!'%(iskypatch_resume))
     # 
     # prepare to write skypatch boxes into a ds9 region file
-    skypatch_region_file = open('ds9_regions_skypatch_boxes.reg', 'w')
-    skypatch_region_file.write('# Region file format: DS9 version 4.1\n')
-    skypatch_region_file.write('image\n')
+    if os.path.isfile('%s.skypatches.ds9.reg'%(output_name)):
+        skypatch_region_file = open('%s.skypatches.ds9.reg'%(output_name), 'a')
+    else:
+        skypatch_region_file = open('%s.skypatches.ds9.reg'%(output_name), 'w')
+        skypatch_region_file.write('# Region file format: DS9 version 4.1\n')
+        skypatch_region_file.write('image\n')
     # 
     # make sky patches (chunks) and loop galaxies within each sky patch
     xstep = 800
@@ -981,12 +1045,13 @@ def generate_image(input_wavelength_um_or_band_name, input_noise_map_Jy_per_beam
     nskypatch = 0
     skypatch_ygrid, skypatch_xgrid = np.mgrid[0:ystep+ybuffer+ybuffer, 0:xstep+xbuffer+xbuffer] # skypatch mgrid with buffer, skypatch[0:,0:] is data[y0-ybuffer:y1+ybuffer,x0-xbuffer:x1+xbuffer]
     skypatch_image = np.full((ystep+ybuffer+ybuffer, xstep+xbuffer+xbuffer), 0.0)
-    PSF_size_pixel = int(np.ceil(input_beam_FWHM_arcsec*10/pixscale)*2+1) # about 20 times the input FWHM, make it an odd number
-    PSF_FWHM_pixel = input_beam_FWHM_arcsec/pixscale
-    PSF_sigma_pixel = PSF_FWHM_pixel / (2.0*np.sqrt(2.0*np.log(2.0)))
-    #PSF_kernel_func = Gaussian2D(x_mean=(PSF_FWHM_pixel-1)/2, y_mean=(PSF_FWHM_pixel-1)/2, x_fwhm=PSF_FWHM_pixel, y_fwhm=PSF_FWHM_pixel)
-    #PSF_kernel_image = PSF_kernel_func.evaluate()
-    PSF_kernel_image = Gaussian2DKernel(PSF_sigma_pixel)
+    if input_beam_FWHM_arcsec is not None:
+        PSF_size_pixel = int(np.ceil(input_beam_FWHM_arcsec*10/pixscale)*2+1) # about 20 times the input FWHM, make it an odd number
+        PSF_FWHM_pixel = input_beam_FWHM_arcsec/pixscale
+        PSF_sigma_pixel = PSF_FWHM_pixel / (2.0*np.sqrt(2.0*np.log(2.0)))
+        #PSF_kernel_func = Gaussian2D(x_mean=(PSF_FWHM_pixel-1)/2, y_mean=(PSF_FWHM_pixel-1)/2, x_fwhm=PSF_FWHM_pixel, y_fwhm=PSF_FWHM_pixel)
+        #PSF_kernel_image = PSF_kernel_func.evaluate()
+        PSF_kernel_image = Gaussian2DKernel(PSF_sigma_pixel)
     for y0 in trange(4000, ny, ystep, desc='1st loop', leave=True):
         y1 = y0+ystep if y0+ystep<ny else ny
         ymask = np.logical_and(xypairs[:,1]>=y0-ybuffer, xypairs[:,1]<y1+ybuffer)
@@ -1051,10 +1116,20 @@ def generate_image(input_wavelength_um_or_band_name, input_noise_map_Jy_per_beam
                                                              'minor':galaxy_Min_arcsec[k]/pixscale, 
                                                              'PA':galaxy_PA[k] }, 
                                                     )
+                        # 
+                        # convert flux from mJy to Jy/pixel
                         flux = galaxy_fluxes[k] * 1e-3 # Jy
-                        flux = flux * PSF_FWHM_pixel**2 # Jy/beam
+                        # 
+                        # convert flux from Jy to Jy/beam if the user has given a beam size
+                        if input_beam_FWHM_arcsec is not None:
+                            #flux = flux * PSF_FWHM_pixel**2 # Jy/beam
+                            flux = flux * np.pi/(4.0*np.log(2.0)) * PSF_FWHM_pixel**2 # Jy/beam
+                        # 
+                        # calculate x y coordinates (0-based) inside the skypatch (with buffer)
                         x = xypairs[k,0]-buf_x0 # coordinate (0-based) inside the skypatch (with buffer)
                         y = xypairs[k,1]-buf_y0 # coordinate (0-based) inside the skypatch (with buffer)
+                        # 
+                        # check galaxy size in pixel unit
                         if galaxy_Maj_arcsec[k]/pixscale < 1.0:
                             # if the galaxy is smaller than one pixel, we set it as a delta function (single-pixel point source) and align it onto the pixel center...
                             if verbose_mode:
@@ -1067,9 +1142,12 @@ def generate_image(input_wavelength_um_or_band_name, input_noise_map_Jy_per_beam
                         # 
                     # 
                     # convolve with beam
-                    if verbose_mode:
-                        print('\rConvolving with the PSF')
-                    skypatch_image = convolve(skypatch_image, PSF_kernel_image)
+                    if input_beam_FWHM_arcsec is not None:
+                        if verbose_mode:
+                            print('\rConvolving with the PSF')
+                        skypatch_image = convolve(skypatch_image, PSF_kernel_image)
+                    # 
+                    # add to data image
                     data_image[y0:y1, x0:x1] += skypatch_image[ybuffer:-ybuffer, xbuffer:-xbuffer]
                     # 
                     # 
@@ -1080,25 +1158,26 @@ def generate_image(input_wavelength_um_or_band_name, input_noise_map_Jy_per_beam
                     nskypatch += 1
                     # 
                     # dump
-                    if nskypatch > 0 and (nskypatch == 5 or nskypatch % 37 == 0):
+                    if nskypatch > 0 and (nskypatch == 5 or nskypatch % 30 == 0):
                         if verbose_mode:
-                            print('\rWriting to "Output_simulated_image.dump.fits" ...')
+                            print('\rWriting to "%s.dump.fits" ...'%(output_name))
                         dump_hdu = fits.PrimaryHDU(data = data_image, header = data_wcs.to_header())
-                        dump_hdu.writeto('Output_simulated_image.dump.fits', overwrite=True)
+                        dump_hdu.writeto('%s.dump.fits'%(output_name), overwrite=True)
                         if verbose_mode:
-                            print('\rWritten to "Output_simulated_image.dump.fits"')
+                            print('\rWritten to "%s.dump.fits"'%(output_name))
                         # 
-                        with open('Output_simulated_image.dump.iskypatch.txt', 'w') as fp:
+                        with open('%s.dump.iskypatch.txt'%(output_name), 'w') as fp:
                             fp.write('%d\n'%(iskypatch))
                         if verbose_mode:
-                            print('\rWritten to "Output_simulated_image.dump.iskypatch.txt"')
+                            print('\rWritten to "%s.dump.iskypatch.txt"'%(output_name))
                         # 
-                        if verbose_mode:
-                            print('\rWriting to "dump_PSF_kernel_image.fits" ...')
-                        dump_hdu = fits.PrimaryHDU(data = PSF_kernel_image)
-                        dump_hdu.writeto('dump_PSF_kernel_image.fits', overwrite=True)
-                        if verbose_mode:
-                            print('\rWritten to "dump_PSF_kernel_image.fits"')
+                        #if input_beam_FWHM_arcsec is not None:
+                        #    if verbose_mode:
+                        #        print('\rWriting to "dump_PSF_kernel_image.fits" ...')
+                        #    dump_hdu = fits.PrimaryHDU(data = PSF_kernel_image)
+                        #    dump_hdu.writeto('dump_PSF_kernel_image.fits', overwrite=True)
+                        #    if verbose_mode:
+                        #        print('\rWritten to "dump_PSF_kernel_image.fits"')
                         # 
                         skypatch_region_file.flush()
                         # 
@@ -1111,19 +1190,27 @@ def generate_image(input_wavelength_um_or_band_name, input_noise_map_Jy_per_beam
         # 
         #break
     # 
+    # write to log
+    with open('%s.dump.iskypatch.txt'%(output_name), 'w') as fp:
+        fp.write('%d\n'%(iskypatch))
+    if verbose_mode:
+        print('\rWritten to "%s.dump.iskypatch.txt"'%(output_name))
+    # 
     skypatch_region_file.close()
+    if verbose_mode:
+        print('\rWritten to "%s.skypatches.ds9.reg"'%(output_name))
     # 
     # 
     if debug_mode:
-        print('Writing to "Output_simulated_image.debug.fits" ...')
+        print('Writing to "%s.debug.fits" ...'%(output_name))
         output_hdu = fits.PrimaryHDU(data = data_image, header = data_wcs.to_header())
-        output_hdu.writeto('Output_simulated_image.debug.fits', overwrite=True)
-        print('Output to "Output_simulated_image.debug.fits"!')
+        output_hdu.writeto('%s.debug.fits'%(output_name), overwrite=True)
+        print('Output to "%s.debug.fits"!'%(output_name))
     else:
-        print('Writing to "Output_simulated_image.fits" ...')
+        print('Writing to "%s.fits" ...'%(output_name))
         output_hdu = fits.PrimaryHDU(data = data_image, header = data_wcs.to_header())
-        output_hdu.writeto('Output_simulated_image.fits', overwrite=True)
-        print('Output to "Output_simulated_image.fits"!')
+        output_hdu.writeto('%s.fits'%(output_name), overwrite=True)
+        print('Output to "%s.fits"!'%(output_name))
     
 
 
@@ -1174,13 +1261,13 @@ if __name__ == '__main__':
     area_arcmin2 = area.to(u.arcmin**2).value
     print('area_arcmin2 = %s'%(area_arcmin2))
     # 
-    #generate_galaxy_numbers(area_arcmin2)
+    generate_galaxy_numbers(area_arcmin2)
     # 
-    #generate_galaxy_coordinates(RA00, Dec00, RA11, Dec11)
+    generate_galaxy_coordinates(RA00, Dec00, RA11, Dec11)
     # 
     generate_galaxy_SEDs()
     # 
-    generate_image('3GHz', 'input_images/vla_3ghz_msmf.rms.fits', 0.75)
+    generate_image('3GHz', input_noise_map = 'input_images/vla_3ghz_msmf.rms.fits', input_beam_FWHM_arcsec = 0.75)
 
 
 
