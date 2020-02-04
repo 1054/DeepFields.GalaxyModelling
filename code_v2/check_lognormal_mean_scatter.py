@@ -54,6 +54,12 @@ def check_lognormal_mean_scatter():
     print('mean(lg(SFR))*N:', 10**main_sequence_lgSFR * N)
     print('lg(mean(SFR)):', lgmean, 'mean(lg(SFR)):', meanlg, 'ratio(meanlg/lgmean):', 10**(meanlg-lgmean))
     print('MS_SFR_meanlg_to_lgmean_correction', MS_SFR_meanlg_to_lgmean_correction)
+    # 
+    # sum of SFR: 476583.56240495446
+    # mean(lg(SFR))*N: 381591.52090311813
+    # lg(mean(SFR)): 2.201017804524656 mean(lg(SFR)): 2.1044774612445245 ratio(meanlg/lgmean): 0.8006812466999833
+    # MS_SFR_meanlg_to_lgmean_correction 0.8001590044142833
+    # 
 
 
 

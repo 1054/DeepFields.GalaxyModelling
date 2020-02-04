@@ -29,7 +29,7 @@ sys.path.append(os.getenv('HOME')+'/Cloud/GitLab/AlmaCosmos/Plot/Common_Python_C
 from CrabGalaxy import CrabGalaxy, CrabGalaxyMorphology
 from CrabTable import CrabTableReadInfo
 from calc_galaxy_stellar_mass_function import (calc_SMF_Davidzon2017, calc_SMF_Ilbert2013, calc_SMF_Peng2010, calc_SMF_Wright2018_single_component, calc_SMF_Wright2018_double_component, calc_SMF_dzliu2018)
-from calc_galaxy_main_sequence import (calc_SFR_MS_Speagle2014, calc_SFR_MS_Sargent2014, calc_SFR_MS_Schreiber2015, calc_SFR_MS_Leslie20190710, calc_SFR_MS_Leslie20191212)
+from calc_galaxy_main_sequence import (calc_SFR_MS_Speagle2014, calc_SFR_MS_Sargent2014, calc_SFR_MS_Schreiber2015, calc_SFR_MS_Leslie20190710, calc_SFR_MS_Leslie20191212, calc_SFR_MS_Leslie2020)
 from calc_galaxy_dust_obscuration import (calc_IRX_Whitaker2017, calc_IRX_Schreiber2017)
 from calc_cosmic_star_formation_rate_density import (calc_CSFRD_Madau2014, calc_CSFRD_Liu2018, convert_age_to_z)
 from matplotlib import pyplot as plt
@@ -785,9 +785,9 @@ def generate_galaxy_SEDs():
     #   qIR = log10(LIR/[Lsun] / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / 93.00666724728771 )
     #   10**qIR = (LIR/[Lsun]) / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / 93.00666724728771
     lgL_TIR = np.log10(SFR_IR) + 43.41 - 7 + 0.0267 # in units of W. Sarah is using the TIR calibration from Murphy+11(also KE12) converted to chabrier imf. See Sarah's email on 2019-12-12.
-    lgL_radio = (lgL_TIR - 5.96 - 12.574) / 0.845 # in units of W. Applied qIR, from Sarah
+    lgL_radio = (lgL_TIR - 5.96 - 12.574) / 0.845 # in units of W Hz-1. Applied qIR, from Sarah
     qIR = -0.155 * lgL_radio + 5.96 # Molnar+2020
-    radio_flux_at_rest_frame_1p4GHz = 10**lgL_radio
+    radio_flux_at_rest_frame_1p4GHz = 10**lgL_radio / (4*np.pi*dL**2 * 9.52140e44) * 1e26 * 1e3 # from W Hz-1 to mJy
     radio_flux_at_obs_frame_3GHz = radio_flux_at_rest_frame_1p4GHz * (1.0+z) * (3.0*(1.0+z)/1.4)**(-0.8)
     # 
     #qIR = 2.35*(1.0+z)**(-0.12)+np.log10(1.91) # Magnelli 2015A%26A...573A..45M

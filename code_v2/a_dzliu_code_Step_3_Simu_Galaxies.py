@@ -324,7 +324,7 @@ def generate_galaxy_numbers(area_arcmin2):
                 output_dict['Maj_kpc'].extend(galaxy_Maj_kpc.tolist()) # optical_R_eff_Maj_kpc
                 output_dict['Min_kpc'].extend(galaxy_Min_kpc.tolist()) # optical_R_eff_Min_kpc
                 output_dict['PA'].extend(galaxy_PA.tolist())
-                output_dict['kpc2arcsec'].extend([kpc2arcsec]*len(galaxy_PA))
+                output_dict['kpc2arcsec'].extend(kpc2arcsec.tolist())
                 
             # 
             print('z = %5.3f - %5.3f, lgMstar = %4.2f - %4.2f, comoving_volume = %.3e Mpc3, galaxy_number = %d, starburst_number = %d, merger_fraction = %.2f%%'%(z[i], z[i+1], lgMstar[j], lgMstar[j+1], comoving_volume, galaxy_number, starburst_number, merger_fraction*100.0))
@@ -725,10 +725,17 @@ def generate_galaxy_SEDs():
     sSFR = model_galaxy_table['sSFR'].data
     lgMstar = model_galaxy_table['lgMstar'].data
     Mstar = 10**lgMstar
-    LIR = 10**(model_galaxy_table['lgSFR'].data) * 1e10
+    SFR = 10**(model_galaxy_table['lgSFR'].data)
+    IRX, f_obscured, SFR_UV, SFR_IR = calc_IRX_Whitaker2017(lgMstar, SFR)
+    LIR = SFR_IR * 1e10
     zAge = model_galaxy_table['cosmoAge'].data
-    #qIR = 2.35*(1.0+z)**(-0.12)+np.log10(1.91) # Magnelli 2015A%26A...573A..45M
-    qIR = 2.85*(1.0+z)**(-0.22) # Delhaize 2017A&A...602A...4D
+    # 
+    # store into table
+    model_galaxy_table['IRX'] = IRX
+    model_galaxy_table['f_obscured'] = f_obscured
+    model_galaxy_table['SFR_UV'] = SFR_UV
+    model_galaxy_table['SFR_IR'] = SFR_IR
+    model_galaxy_table['LIR'] = LIR
     # 
     # assuming galaxy age
     Age = 1.0/sSFR # set galaxy age to 1.0/sSFR (~5Gyr at z~0.1, ~1Gyr at z~1, to ~0.4Gyr at z~4)
@@ -777,9 +784,24 @@ def generate_galaxy_SEDs():
     #   qIR = log10(LIR/[Lsun] / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / ((3.085677e22**2*1e-29)/(3.839e26/3.75e12)) )
     #   qIR = log10(LIR/[Lsun] / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / 93.00666724728771 )
     #   10**qIR = (LIR/[Lsun]) / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / 93.00666724728771
-    radio_flux_at_rest_frame_1p4GHz = LIR / (4*np.pi*dL**2) / 93.75 / 10**qIR
+    lgL_TIR = np.log10(SFR_IR) + 43.41 - 7 + 0.0267 # in units of W. Sarah is using the TIR calibration from Murphy+11(also KE12) converted to chabrier imf. See Sarah's email on 2019-12-12.
+    lgL_radio = (lgL_TIR - 5.96 - 12.574) / 0.845 # in units of W. Applied qIR, from Sarah
+    qIR = -0.155 * lgL_radio + 5.96 # Molnar+2020
+    radio_flux_at_rest_frame_1p4GHz = 10**lgL_radio
     radio_flux_at_obs_frame_3GHz = radio_flux_at_rest_frame_1p4GHz * (1.0+z) * (3.0*(1.0+z)/1.4)**(-0.8)
+    # 
+    #qIR = 2.35*(1.0+z)**(-0.12)+np.log10(1.91) # Magnelli 2015A%26A...573A..45M
+    #qIR = 2.85*(1.0+z)**(-0.22) # Delhaize 2017A&A...602A...4D
+    qIR = (-0.155*(np.log10((LIR*3.839e26)/3.75e12)) + 5.96) / 0.845 # Molnar 2019/2020
+    radio_flux_at_rest_frame_1p4GHz_to_check = LIR / (4*np.pi*dL**2) / 93.75 / 10**qIR # mJy
+    radio_flux_at_obs_frame_3GHz_to_check = radio_flux_at_rest_frame_1p4GHz_to_check * (1.0+z) * (3.0*(1.0+z)/1.4)**(-0.8)
+    # 
+    # store into table
+    model_galaxy_table['qIR'] = qIR
+    model_galaxy_table['SED_rest1p4GHz'] = radio_flux_at_rest_frame_1p4GHz # mJy
     model_galaxy_table['SED_3GHz'] = radio_flux_at_obs_frame_3GHz # mJy
+    model_galaxy_table['SED_rest1p4GHz_to_check'] = radio_flux_at_rest_frame_1p4GHz_to_check # mJy
+    model_galaxy_table['SED_3GHz_to_check'] = radio_flux_at_obs_frame_3GHz_to_check # mJy
     # 
     # 
     # save 
@@ -1252,6 +1274,8 @@ if __name__ == '__main__':
     RA_extent_11 = SkyCoord01.separation(SkyCoord11)
     Dec_extent_00 = SkyCoord00.separation(SkyCoord01)
     Dec_extent_11 = SkyCoord10.separation(SkyCoord11)
+    print('RA00, RA11 = %s, %s'%(RA00, RA11))
+    print('Dec00, Dec11 = %s, %s'%(Dec00, Dec11))
     print('RA_extent_00 = %s deg'%(RA_extent_00.to(u.deg).value))
     print('RA_extent_11 = %s deg'%(RA_extent_11.to(u.deg).value))
     print('Dec_extent_00 = %s deg'%(Dec_extent_00.to(u.deg).value))
@@ -1262,13 +1286,13 @@ if __name__ == '__main__':
     area_arcmin2 = area.to(u.arcmin**2).value
     print('area_arcmin2 = %s'%(area_arcmin2))
     # 
-    generate_galaxy_numbers(area_arcmin2)
+    #generate_galaxy_numbers(area_arcmin2)
     # 
-    generate_galaxy_coordinates(RA00, Dec00, RA11, Dec11)
+    #generate_galaxy_coordinates(RA00, Dec00, RA11, Dec11)
     # 
-    generate_galaxy_SEDs()
+    #generate_galaxy_SEDs()
     # 
-    generate_image('3GHz', input_noise_map = 'input_images/vla_3ghz_msmf.rms.fits', input_beam_FWHM_arcsec = 0.75)
+    #generate_image('3GHz', input_noise_map = 'input_images/vla_3ghz_msmf.rms.fits', input_beam_FWHM_arcsec = 0.75)
 
 
 
