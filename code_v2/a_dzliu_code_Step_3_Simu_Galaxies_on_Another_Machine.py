@@ -784,20 +784,30 @@ def generate_galaxy_SEDs():
     #   qIR = log10(LIR/[Lsun] / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / ((3.085677e22**2*1e-29)/(3.839e26/3.75e12)) )
     #   qIR = log10(LIR/[Lsun] / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / 93.00666724728771 )
     #   10**qIR = (LIR/[Lsun]) / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / 93.00666724728771
-    lgL_TIR = np.log10(SFR_IR) + 43.41 - 7 + 0.0267 # in units of W. Sarah is using the TIR calibration from Murphy+11(also KE12) converted to chabrier imf. See Sarah's email on 2019-12-12.
-    lgL_radio = (lgL_TIR - 5.96 - 12.574) / 0.845 # in units of W Hz-1. Applied qIR, from Sarah
+    lgL_TIR = np.log10(SFR_IR) + 43.41 - 7 + 0.0267 # = lg(SFR) + 36.437 # in units of W. Sarah is using the TIR calibration from Murphy+11(also KE12) converted to chabrier imf. See Sarah's email on 2019-12-12.
+    lgL_radio = (lgL_TIR - 5.96 - 12.574) / 0.845 # in units of W Hz-1. Applied Molnar 2019/2020 qIR, from Sarah
     qIR = -0.155 * lgL_radio + 5.96 # Molnar+2020
     radio_flux_at_rest_frame_1p4GHz = 10**lgL_radio / (4*np.pi*dL**2 * 9.52140e44) * 1e26 * 1e3 # from W Hz-1 to mJy
     radio_flux_at_obs_frame_3GHz = radio_flux_at_rest_frame_1p4GHz * (1.0+z) * (3.0*(1.0+z)/1.4)**(-0.8)
     # 
     #qIR = 2.35*(1.0+z)**(-0.12)+np.log10(1.91) # Magnelli 2015A%26A...573A..45M
     #qIR = 2.85*(1.0+z)**(-0.22) # Delhaize 2017A&A...602A...4D
-    qIR = (-0.155*(np.log10((LIR*3.839e26)/3.75e12)) + 5.96) / 0.845 # Molnar 2019/2020
-    radio_flux_at_rest_frame_1p4GHz_to_check = LIR / (4*np.pi*dL**2) / 93.75 / 10**qIR # mJy
+    #qIR = -0.155 * lgL_radio + 5.96 # Molnar+2020
+    #qIR = log10(L_TIR_W/L_radio_W_Hz/3.75e12) = lgL_TIR - lgL_radio - lg(3.75e12) = lgL_TIR - lgL_radio - 12.574
+    #so -0.155 * lgL_radio + 5.96 = lgL_TIR - lgL_radio - 12.574
+    #so lgL_radio = (lgL_TIR - 5.96 - 12.574) / 0.845
+    #or qIR = (lgL_TIR - 12.574) - lgL_radio = (lgL_TIR - 12.574) - ((qIR - 5.96) / -0.155)
+    #so -0.155 * qIR = -0.155 * (lgL_TIR - 12.574) - (qIR - 5.96)
+    #so qIR = (-0.155 * (lgL_TIR - 12.574) + 5.96) / 0.845
+    lgL_TIR_to_check = np.log10(LIR*3.839e26) # = lg(SFR) + 36.584 # in units of W.
+    qIR_to_check = (-0.155 * (np.log10(LIR*3.839e26/3.75e12)) + 5.96) / 0.845 # Molnar 2019/2020
+    qIR = (-0.155 * (np.log10(LIR*3.839e26/3.75e12)) + 5.96) / 0.845 # Molnar 2019/2020
+    radio_flux_at_rest_frame_1p4GHz_to_check = LIR / (4*np.pi*dL**2) / 93.75 / 10**qIR_to_check # mJy
     radio_flux_at_obs_frame_3GHz_to_check = radio_flux_at_rest_frame_1p4GHz_to_check * (1.0+z) * (3.0*(1.0+z)/1.4)**(-0.8)
     # 
     # store into table
     model_galaxy_table['qIR'] = qIR
+    model_galaxy_table['qIR_to_check'] = qIR_to_check
     model_galaxy_table['SED_rest1p4GHz'] = radio_flux_at_rest_frame_1p4GHz # mJy
     model_galaxy_table['SED_3GHz'] = radio_flux_at_obs_frame_3GHz # mJy
     model_galaxy_table['SED_rest1p4GHz_to_check'] = radio_flux_at_rest_frame_1p4GHz_to_check # mJy
@@ -1284,13 +1294,13 @@ if __name__ == '__main__':
     area_arcmin2 = area.to(u.arcmin**2).value
     print('area_arcmin2 = %s'%(area_arcmin2))
     # 
-    generate_galaxy_numbers(area_arcmin2)
+    #generate_galaxy_numbers(area_arcmin2)
     # 
-    generate_galaxy_coordinates(RA00, Dec00, RA11, Dec11)
+    #generate_galaxy_coordinates(RA00, Dec00, RA11, Dec11)
     # 
     generate_galaxy_SEDs()
     # 
-    generate_image('3GHz', input_noise_map = 'input_images/vla_3ghz_msmf.rms.fits', input_beam_FWHM_arcsec = 0.75)
+    #generate_image('3GHz', input_noise_map = 'input_images/vla_3ghz_msmf.rms.fits', input_beam_FWHM_arcsec = 0.75)
 
 
 
