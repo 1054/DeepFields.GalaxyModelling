@@ -1295,13 +1295,13 @@ if __name__ == '__main__':
     area_arcmin2 = area.to(u.arcmin**2).value
     print('area_arcmin2 = %s'%(area_arcmin2))
     # 
-    #generate_galaxy_numbers(area_arcmin2)
+    generate_galaxy_numbers(area_arcmin2)
     # 
-    #generate_galaxy_coordinates(RA00, Dec00, RA11, Dec11)
+    generate_galaxy_coordinates(RA00, Dec00, RA11, Dec11)
     # 
-    #generate_galaxy_SEDs()
+    generate_galaxy_SEDs()
     # 
-    #generate_image('3GHz', input_noise_map = 'input_images/vla_3ghz_msmf.rms.fits', input_beam_FWHM_arcsec = 0.75)
+    generate_image('3GHz', input_noise_map = 'input_images/vla_3ghz_msmf.rms.fits', input_beam_FWHM_arcsec = 0.75)
 
 
 
