@@ -29,7 +29,7 @@ sys.path.append(os.getenv('HOME')+'/Cloud/GitLab/AlmaCosmos/Plot/Common_Python_C
 from CrabGalaxy import CrabGalaxy, CrabGalaxyMorphology
 from CrabTable import CrabTableReadInfo
 from calc_galaxy_stellar_mass_function import (calc_SMF_Davidzon2017, calc_SMF_Ilbert2013, calc_SMF_Peng2010, calc_SMF_Wright2018_single_component, calc_SMF_Wright2018_double_component, calc_SMF_dzliu2018)
-from calc_galaxy_main_sequence import (calc_SFR_MS_Speagle2014, calc_SFR_MS_Sargent2014, calc_SFR_MS_Schreiber2015, calc_SFR_MS_Leslie20190710, calc_SFR_MS_Leslie20200206)
+from calc_galaxy_main_sequence import (calc_SFR_MS_Speagle2014, calc_SFR_MS_Sargent2014, calc_SFR_MS_Schreiber2015, calc_SFR_MS_Leslie20190710, calc_SFR_MS_Leslie20200306)
 from calc_galaxy_dust_obscuration import (calc_IRX_Whitaker2017, calc_IRX_Schreiber2017)
 from calc_cosmic_star_formation_rate_density import (calc_CSFRD_Madau2014, calc_CSFRD_Liu2018, convert_age_to_z)
 from matplotlib import pyplot as plt
@@ -45,7 +45,7 @@ ln = np.log
 global calc_SFR_MS
 ###calc_SFR_MS = calc_SFR_MS_Leslie20190710 ; label_SF_MS = 'Leslie+2019'
 ###calc_SFR_MS = calc_SFR_MS_Leslie20191212 ; label_SF_MS = 'Leslie+2019'
-calc_SFR_MS = calc_SFR_MS_Leslie20200206 ; label_SF_MS = 'Leslie+2020'
+calc_SFR_MS = calc_SFR_MS_Leslie20200306 ; label_SF_MS = 'Leslie+2020'
 #calc_SFR_MS = calc_SFR_MS_Speagle2014 ; label_SF_MS = 'Speagle+2014'
 #calc_SFR_MS = calc_SFR_MS_Sargent2014 ; label_SF_MS = 'Sargent+2014'
 #calc_SFR_MS = calc_SFR_MS_Schreiber2015 ; label_SF_MS = 'Schreiber+2015'
@@ -71,7 +71,7 @@ calc_CSFRD = calc_CSFRD_Madau2014 ; label_CSFRD = 'MD14'
 Function for SF_MS_scatter
 """
 def SF_MS_scatter(lgMstar):
-    # See https://arxiv.org/pdf/1812.07057.pdf Figure 5
+    # See Popesso+2019 -- https://arxiv.org/pdf/1812.07057.pdf Figure 5
     # It seems their SED fitting derived main sequence scatter is most stable at around 0.29 dex.
     #return np.interp(lgMstar, [6.0, 10.0, 11.0, 14.0], [0.3, 0.3, 0.4, 0.4])
     return np.interp(lgMstar, [6.0, 10.0, 11.0, 14.0], [0.29, 0.29, 0.29, 0.29])
@@ -785,7 +785,7 @@ def generate_galaxy_SEDs():
     #   qIR = log10(LIR/[Lsun] / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / ((3.085677e22**2*1e-29)/(3.839e26/3.75e12)) )
     #   qIR = log10(LIR/[Lsun] / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / 93.00666724728771 )
     #   10**qIR = (LIR/[Lsun]) / (4*pi*(dL/[Mpc])**2*(S1.4GHz/[mJy])) / 93.00666724728771
-    lgL_TIR = np.log10(SFR_IR) + 43.41 - 7 + 0.0267 # = lg(SFR) + 36.437 # in units of W. Sarah is using the TIR calibration from Murphy+11(also KE12) converted to chabrier imf. See Sarah's email on 2019-12-12.
+    lgL_TIR = np.log10(SFR_IR) + 43.41 - 7 + 0.0267 # = lg(SFR) + 36.437 # in units of W. From Sarah, using the TIR calibration from Murphy+11(also KE12) converted to chabrier imf. See Sarah's email on 2019-12-12.
     lgL_radio = (lgL_TIR - 5.96 - 12.574) / 0.845 # in units of W Hz-1. Applied Molnar 2019/2020 qIR, from Sarah
     qIR = -0.155 * lgL_radio + 5.96 # Molnar+2020
     radio_flux_at_rest_frame_1p4GHz = 10**lgL_radio / (4*np.pi*dL**2 * 9.52140e44) * 1e26 * 1e3 # from W Hz-1 to mJy
@@ -1295,13 +1295,13 @@ if __name__ == '__main__':
     area_arcmin2 = area.to(u.arcmin**2).value
     print('area_arcmin2 = %s'%(area_arcmin2))
     # 
-    generate_galaxy_numbers(area_arcmin2)
+    #generate_galaxy_numbers(area_arcmin2)
     # 
-    generate_galaxy_coordinates(RA00, Dec00, RA11, Dec11)
+    #generate_galaxy_coordinates(RA00, Dec00, RA11, Dec11)
     # 
-    generate_galaxy_SEDs()
+    #generate_galaxy_SEDs()
     # 
-    generate_image('3GHz', input_noise_map = 'input_images/vla_3ghz_msmf.rms.fits', input_beam_FWHM_arcsec = 0.75)
+    #generate_image('3GHz', input_noise_map = 'input_images/vla_3ghz_msmf.rms.fits', input_beam_FWHM_arcsec = 0.75)
 
 
 

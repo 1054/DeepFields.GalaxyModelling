@@ -70,7 +70,7 @@ calc_CSFRD = calc_CSFRD_Madau2014 ; label_CSFRD = 'MD14'
 Function for SF_MS_scatter
 """
 def SF_MS_scatter(lgMstar):
-    # See https://arxiv.org/pdf/1812.07057.pdf Figure 5
+    # See Popesso+2019 -- https://arxiv.org/pdf/1812.07057.pdf Figure 5
     # It seems their SED fitting derived main sequence scatter is most stable at around 0.29 dex.
     #return np.interp(lgMstar, [6.0, 10.0, 11.0, 14.0], [0.3, 0.3, 0.4, 0.4])
     return np.interp(lgMstar, [6.0, 10.0, 11.0, 14.0], [0.29, 0.29, 0.29, 0.29])
